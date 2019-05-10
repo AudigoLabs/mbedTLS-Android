@@ -11,13 +11,92 @@ cmake_minimum_required(VERSION 3.4.1)
 # Gradle automatically packages shared libraries with your APK.
 
 add_library( # Sets the name of the library.
-        testjni
+        libmbedtls
 
         # Sets the library as a shared library.
         SHARED
 
         # Provides a relative path to your source file(s).
-        testjni.c)
+        libmbedtls.c
+        mbedtls/aes.c
+        mbedtls/aesni.c
+        mbedtls/arc4.c
+        mbedtls/aria.c
+        mbedtls/asn1parse.c
+        mbedtls/asn1write.c
+        mbedtls/base64.c
+        mbedtls/bignum.c
+        mbedtls/blowfish.c
+        mbedtls/camellia.c
+        mbedtls/ccm.c
+        mbedtls/certs.c
+        mbedtls/chacha20.c
+        mbedtls/chachapoly.c
+        mbedtls/cipher_wrap.c
+        mbedtls/cipher.c
+        mbedtls/cmac.c
+        mbedtls/ctr_drbg.c
+        mbedtls/debug.c
+        mbedtls/des.c
+        mbedtls/dhm.c
+        mbedtls/ecdh.c
+        mbedtls/ecdsa.c
+        mbedtls/ecjpake.c
+        mbedtls/ecp_curves.c
+        mbedtls/ecp.c
+        mbedtls/entropy_poll.c
+        mbedtls/entropy.c
+        mbedtls/error.c
+        mbedtls/gcm.c
+        mbedtls/havege.c
+        mbedtls/hkdf.c
+        mbedtls/hmac_drbg.c
+        mbedtls/md_wrap.c
+        mbedtls/md.c
+        mbedtls/md2.c
+        mbedtls/md4.c
+        mbedtls/md5.c
+        mbedtls/memory_buffer_alloc.c
+        mbedtls/net_sockets.c
+        mbedtls/nist_kw.c
+        mbedtls/oid.c
+        mbedtls/padlock.c
+        mbedtls/pem.c
+        mbedtls/pk_wrap.c
+        mbedtls/pk.c
+        mbedtls/pkcs5.c
+        mbedtls/pkcs11.c
+        mbedtls/pkcs12.c
+        mbedtls/pkparse.c
+        mbedtls/pkwrite.c
+        mbedtls/platform_util.c
+        mbedtls/platform.c
+        mbedtls/poly1305.c
+        mbedtls/ripemd160.c
+        mbedtls/rsa_internal.c
+        mbedtls/rsa.c
+        mbedtls/sha1.c
+        mbedtls/sha256.c
+        mbedtls/sha512.c
+        mbedtls/ssl_cache.c
+        mbedtls/ssl_ciphersuites.c
+        mbedtls/ssl_cli.c
+        mbedtls/ssl_cookie.c
+        mbedtls/ssl_srv.c
+        mbedtls/ssl_ticket.c
+        mbedtls/ssl_tls.c
+        mbedtls/threading.c
+        mbedtls/timing.c
+        mbedtls/version_features.c
+        mbedtls/version.c
+        mbedtls/x509_create.c
+        mbedtls/x509_crl.c
+        mbedtls/x509_crt.c
+        mbedtls/x509_csr.c
+        mbedtls/x509.c
+        mbedtls/x509write_crt.c
+        mbedtls/x509write_csr.c
+        mbedtls/xtea.c)
 
 # Searches for a specified prebuilt library and stores the path as a
 # variable. Because CMake includes system libraries in the search path by
@@ -37,7 +116,7 @@ find_library( # Sets the name of the path variable.
 # build script, prebuilt third-party libraries, or system libraries.
 
 target_link_libraries( # Specifies the target library.
-        testjni
+        libmbedtls
 
         # Links the target library to the log library
         # included in the NDK.

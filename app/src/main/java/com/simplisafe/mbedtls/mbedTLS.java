@@ -1,13 +1,12 @@
 package com.simplisafe.mbedtls;
 
-import android.util.Log;
-
 public class mbedTLS {
 
     public interface mbedTLSCallback {
         int writeCallback(byte[] data, int datalength);
-        int readCallback(byte[] data, int datalength);
+        byte[] readCallback(int datalength);
         void handshakeCompleted();
+        void logDebug(String fileName, int line, String log);
     }
 
     private mbedTLSCallback callbackMethods;
@@ -97,8 +96,8 @@ public class mbedTLS {
         return callbackMethods.writeCallback(data, dataLength);
     }
 
-    private int readCallback(byte[] data, int dataLength) {
-        return callbackMethods.readCallback(data, dataLength);
+    private byte[] readCallback(int dataLength) {
+        return callbackMethods.readCallback(dataLength);
     }
 
     public void executeNextHandshakeStep() {
@@ -131,7 +130,7 @@ public class mbedTLS {
     }
 
     private void debugUtility(byte[] fileName, int lineNumber, byte[] log) {
-        Log.d(new String(fileName) + ":" + lineNumber + ": ", new String(log));
+        callbackMethods.logDebug(new String(fileName), lineNumber, new String(log));
     }
 
 }

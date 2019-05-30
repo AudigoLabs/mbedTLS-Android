@@ -15,6 +15,8 @@ jmethodID debugUtility;
 
 static JavaVM *jvm;
 
+jintArray ciphers;
+
 JNIEXPORT void JNICALL Java_com_simplisafe_mbedtls_mbedTLS_init(JNIEnv *env, jobject thisObj) {
     mbedtls_ssl_init(&ssl_context);
     mbedtls_ssl_config_init(&ssl_config);
@@ -38,7 +40,7 @@ JNIEXPORT void JNICALL Java_com_simplisafe_mbedtls_mbedTLS_getClassObject(JNIEnv
     classReference = (*env)->NewGlobalRef(env, classref);
     jclass mbedTLS = (*env)->GetObjectClass(env, classref);
     writeCallback = (*env)->GetMethodID(env, mbedTLS, "writeCallback", "([BI)I");
-    readCallback = (*env)->GetMethodID(env, mbedTLS, "readCallback", "([BI)I");
+    readCallback = (*env)->GetMethodID(env, mbedTLS, "readCallback", "(I)[B");
     debugUtility = (*env)->GetMethodID(env, mbedTLS, "debugUtility", "([BI[B)V");
 }
 
@@ -54,10 +56,9 @@ int write_callback(void *ctx, const unsigned char *buf, size_t len) {
 int read_callback(void *ctx, unsigned char *buf, size_t len) {
     JNIEnv *env;
     (*jvm)->AttachCurrentThread(jvm, (void **)&env, NULL);
-    jbyteArray arr = (*env)->NewByteArray(env, (jsize)len);
-    (*env)->SetByteArrayRegion(env, arr, 0, (jsize)len, (jbyte*)buf);
-    jint result = (*env)->CallIntMethod(env, classReference, readCallback, arr, len);
-    return result;
+    jbyteArray bytesToRead = (*env)->CallObjectMethod(env, classReference, readCallback, len);
+    (*env)->GetByteArrayRegion(env, bytesToRead, 0, (jsize)len, (jbyte*)buf);
+    return (int)len;
 }
 
 JNIEXPORT void JNICALL Java_com_simplisafe_mbedtls_mbedTLS_setIOFuncs(JNIEnv *env, jobject thisObj, jstring contextParameter) {
@@ -65,7 +66,8 @@ JNIEXPORT void JNICALL Java_com_simplisafe_mbedtls_mbedTLS_setIOFuncs(JNIEnv *en
 }
 
 JNIEXPORT void JNICALL Java_com_simplisafe_mbedtls_mbedTLS_configureCipherSuites(JNIEnv *env, jobject thisObj, jintArray ciphersuites) {
-    mbedtls_ssl_conf_ciphersuites(&ssl_config, ciphersuites);
+    ciphers = (*env)->GetIntArrayElements(env, ciphersuites, 0);
+    mbedtls_ssl_conf_ciphersuites(&ssl_config, ciphers);
 }
 
 JNIEXPORT void JNICALL Java_com_simplisafe_mbedtls_mbedTLS_setMinimumProtocolVersion(JNIEnv *env, jobject thisObj, jint version) {

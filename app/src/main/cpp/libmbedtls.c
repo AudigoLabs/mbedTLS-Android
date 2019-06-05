@@ -22,7 +22,10 @@ JNIEXPORT void JNICALL Java_com_simplisafe_mbedtls_mbedTLS_init(JNIEnv *env, job
     mbedtls_ssl_config_init(&ssl_config);
     mbedtls_ctr_drbg_init(&random_byte_generator);
     mbedtls_entropy_init(&entropy_context);
-    mbedtls_x509_crt_init(&cert_chain);
+    mbedtls_x509_crt_init(&cert_chain1);
+    mbedtls_x509_crt_init(&cert_chain2);
+    mbedtls_x509_crt_init(&cert_chain3);
+    mbedtls_pk_init(&key_pair);
 
     mbedtls_ctr_drbg_seed(&random_byte_generator, mbedtls_entropy_func, &entropy_context, NULL, 0);
 
@@ -101,4 +104,37 @@ void debug_msg(void *ctx, int level, const char *file, int line, const char *str
 JNIEXPORT void JNICALL Java_com_simplisafe_mbedtls_mbedTLS_enableDebug(JNIEnv *env, jobject thisObj, jint level) {
     mbedtls_debug_set_threshold(level);
     mbedtls_ssl_conf_dbg(&ssl_config, debug_msg, stdout);
+}
+
+JNIEXPORT void JNICALL Java_com_simplisafe_mbedtls_mbedTLS_configureClientCert(JNIEnv *env, jobject thisObj, jbyteArray certificateBytes, jbyteArray keyPair) {
+    int cert_len = (*env)->GetArrayLength(env, certificateBytes);
+    int key_pair_len = (*env)->GetArrayLength(env, keyPair);
+    unsigned char* certificate = (unsigned char*)(*env)->GetByteArrayElements(env, certificateBytes, NULL);
+    unsigned char* privateKey = (unsigned char*)(*env)->GetByteArrayElements(env, keyPair, NULL);
+    if (mbedtls_x509_crt_parse(&cert_chain1, certificate, (size_t)cert_len) == 0 && mbedtls_pk_parse_key(&key_pair, privateKey, (size_t)key_pair_len, NULL, 0) == 0) {
+        mbedtls_ssl_conf_own_cert(&ssl_config, &cert_chain1, &key_pair);
+    }
+}
+
+JNIEXPORT void JNICALL Java_com_simplisafe_mbedtls_mbedTLS_configureRootCACert(JNIEnv *env, jobject thisObj, jbyteArray certificateBytes) {
+    int len = (*env)->GetArrayLength(env, certificateBytes);
+    unsigned char* certificate = (unsigned char*)(*env)->GetByteArrayElements(env, certificateBytes, NULL);
+    if (mbedtls_x509_crt_parse(&cert_chain2, certificate, (size_t)len) == 0) {
+        mbedtls_ssl_conf_ca_chain(&ssl_config, &cert_chain2, NULL);
+    }
+}
+
+JNIEXPORT jbyteArray JNICALL Java_com_simplisafe_mbedtls_mbedTLS_getIssuerName(JNIEnv *env, jobject thisObj, jbyteArray certificateBytes) {
+    int len = (*env)->GetArrayLength(env, certificateBytes);
+    unsigned char* certificate = (unsigned char*)(*env)->GetByteArrayElements(env, certificateBytes, NULL);
+    if (mbedtls_x509_crt_parse(&cert_chain3, certificate, (size_t)len) == 0) {
+        jbyteArray arr = (*env)->NewByteArray(env, 20);
+        (*env)->SetByteArrayRegion(env, arr, 0, 20, (jbyte*)cert_chain3.issuer.next->next->next->next->next->val.p);
+        return arr;
+    }
+    return NULL;
+}
+
+JNIEXPORT void JNICALL Java_com_simplisafe_mbedtls_mbedTLS_fixPeerCert(JNIEnv *env, jobject thisObj) {
+    ssl_context.session_negotiate->peer_cert = ssl_context.session_negotiate->peer_cert->next;
 }

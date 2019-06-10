@@ -138,3 +138,12 @@ JNIEXPORT jbyteArray JNICALL Java_com_simplisafe_mbedtls_mbedTLS_getIssuerName(J
 JNIEXPORT void JNICALL Java_com_simplisafe_mbedtls_mbedTLS_fixPeerCert(JNIEnv *env, jobject thisObj) {
     ssl_context.session_negotiate->peer_cert = ssl_context.session_negotiate->peer_cert->next;
 }
+
+JNIEXPORT jboolean JNICALL Java_com_simplisafe_mbedtls_mbedTLS_write(JNIEnv *env, jobject thisObj, jbyteArray data) {
+    int len = (*env)->GetArrayLength(env, data);
+    unsigned char* dataToWrite = (unsigned char*)(*env)->GetByteArrayElements(env, data, NULL);
+    if (mbedtls_ssl_write(&ssl_context, dataToWrite, (size_t)len) == len) {
+        return JNI_TRUE;
+    }
+    return JNI_FALSE;
+}

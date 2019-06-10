@@ -85,6 +85,7 @@ public class mbedTLS {
     public native void configureClientCert(byte[] certificateBytes, byte[] keyPair);
     public native void configureRootCACert(byte[] certificateBytes);
     public native byte[] getIssuerName(byte[] certificateBytes);
+    public native boolean write(byte[] data);
 
     public void setIOFunctions(String contextParameter, mbedTLSCallback callback) {
         setIOFuncs(contextParameter);

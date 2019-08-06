@@ -33,5 +33,6 @@ JNIEXPORT void JNICALL Java_com_simplisafe_mbedtls_mbedTLS_configureRootCACert(J
 JNIEXPORT jbyteArray JNICALL Java_com_simplisafe_mbedtls_mbedTLS_getIssuerName(JNIEnv *, jobject, jbyteArray);
 JNIEXPORT void JNICALL Java_com_simplisafe_mbedtls_mbedTLS_fixPeerCert(JNIEnv *, jobject);
 JNIEXPORT jboolean JNICALL Java_com_simplisafe_mbedtls_mbedTLS_write(JNIEnv *, jobject, jbyteArray);
+JNIEXPORT jboolean JNICALL Java_com_simplisafe_mbedtls_mbedTLS_read(JNIEnv *, jobject, jint, jbyteArray);
 
 #endif //MBEDTLS_ANDROID_LIBMBEDTLS_H

@@ -147,3 +147,13 @@ JNIEXPORT jboolean JNICALL Java_com_simplisafe_mbedtls_mbedTLS_write(JNIEnv *env
     }
     return JNI_FALSE;
 }
+
+JNIEXPORT jboolean JNICALL Java_com_simplisafe_mbedtls_mbedTLS_read(JNIEnv *env, jobject thisObj, jint length, jbyteArray buffer) {
+    unsigned char arr[length];
+    if (mbedtls_ssl_read(&ssl_context, arr, (size_t)length) < 0) {
+        return JNI_FALSE;
+    } else {
+        (*env)->SetByteArrayRegion(env, buffer, 0, (jsize)length, (jbyte*)arr);
+        return JNI_TRUE;
+    }
+}

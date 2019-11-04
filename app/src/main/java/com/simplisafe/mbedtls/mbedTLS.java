@@ -1,5 +1,13 @@
 package com.simplisafe.mbedtls;
 
+import static com.simplisafe.mbedtls.mbedTLSException.ErrorMessage.CONFIG_CLIENT_CERTIFICATE;
+import static com.simplisafe.mbedtls.mbedTLSException.ErrorMessage.ENTROPY;
+import static com.simplisafe.mbedtls.mbedTLSException.ErrorMessage.PARSE_CERTIFICATE;
+import static com.simplisafe.mbedtls.mbedTLSException.ErrorMessage.PARSE_KEY_PAIR;
+import static com.simplisafe.mbedtls.mbedTLSException.ErrorMessage.SSL_CONFIGURATION;
+import static com.simplisafe.mbedtls.mbedTLSException.ErrorMessage.SSL_SETUP;
+import static com.simplisafe.mbedtls.mbedTLSException.ErrorMessage.HANDSHAKE_STEP;
+
 public class mbedTLS {
 
     public interface mbedTLSCallback {
@@ -66,12 +74,14 @@ public class mbedTLS {
         System.loadLibrary("libmbedtls");
     }
 
-    public mbedTLS() {
-        init();
+    public mbedTLS() throws mbedTLSException {
+        if (init() != 0) {
+            throw new mbedTLSException(ENTROPY);
+        }
         getClassObject(this);
     }
 
-    private native void init();
+    private native int init();
     private native void getClassObject(mbedTLS mbedtls);
     private native void setIOFuncs(String contextParameter);
     private native void setMinimumProtocolVersion(int version);
@@ -79,12 +89,12 @@ public class mbedTLS {
     private native int executeHandshakeStep();
     private native void enableDebug(int level);
     private native void fixPeerCert();
+    private native int setupSSLContextNative();
+    private native int configureClientCertNative(byte[] certificateBytes, byte[] keyPair);
+    private native int configureRootCACertNative(byte[] certificateBytes);
+    private native byte[] getIssuerNameNative(byte[] certificateBytes);
 
-    public native void setupSSLContext();
     public native void configureCipherSuites(int[] ciphersuites);
-    public native void configureClientCert(byte[] certificateBytes, byte[] keyPair);
-    public native void configureRootCACert(byte[] certificateBytes);
-    public native byte[] getIssuerName(byte[] certificateBytes);
     public native boolean write(byte[] data);
     public native boolean read(int length, byte[] buffer);
 
@@ -106,17 +116,56 @@ public class mbedTLS {
         return callbackMethods.readCallback(dataLength);
     }
 
-    public void executeNextHandshakeStep() {
+    public void setupSSLContext() throws mbedTLSException {
+        int ret = setupSSLContextNative();
+        if (ret == 552) {
+            throw new mbedTLSException(SSL_CONFIGURATION);
+        } else if (ret == 553) {
+            throw new mbedTLSException(SSL_SETUP);
+        }
+    }
+
+    public void configureClientCert(byte[] certificateBytes, byte[] keyPair) throws mbedTLSException {
+        int ret = configureClientCertNative(certificateBytes, keyPair);
+        if (ret == 555) {
+            throw new mbedTLSException(PARSE_CERTIFICATE);
+        } else if (ret == 556) {
+            throw new mbedTLSException(PARSE_KEY_PAIR);
+        } else if (ret == 557) {
+            throw new mbedTLSException(CONFIG_CLIENT_CERTIFICATE);
+        }
+    }
+
+    public void configureRootCACert(byte[] certificateBytes) throws mbedTLSException {
+        if (configureRootCACertNative(certificateBytes) != 0) {
+            throw new mbedTLSException(PARSE_CERTIFICATE);
+        }
+    }
+
+    public byte[] getIssuerName(byte[] certificateBytes) throws mbedTLSException {
+        byte[] issuerName = getIssuerNameNative(certificateBytes);
+        if (issuerName == null) {
+            throw new mbedTLSException(PARSE_CERTIFICATE);
+        }
+        return issuerName;
+    }
+
+    private boolean handshakeStep() throws mbedTLSException {
+        if (executeHandshakeStep() != 0) {
+            throw new mbedTLSException(HANDSHAKE_STEP);
+        }
+        currentHandshakeStep = currentHandshakeStep.next();
+        return true;
+    }
+
+    public void executeNextHandshakeStep() throws mbedTLSException {
         if (currentHandshakeStep == HandshakeSteps.HELLO_REQUEST) {
-            executeHandshakeStep();
-            executeHandshakeStep();
-            currentHandshakeStep = HandshakeSteps.SERVER_HELLO;
+            handshakeStep();
+            handshakeStep();
         } else if (currentHandshakeStep == HandshakeSteps.HANDSHAKE_COMPLETED) {
             callbackMethods.handshakeCompleted();
         } else {
-            if (executeHandshakeStep() == 0) {
-                currentHandshakeStep = currentHandshakeStep.next();
-
+            if (handshakeStep()) {
                 switch (currentHandshakeStep) {
                     case CLIENT_CERTIFICATE:
                     case FLUSH_BUFFERS:

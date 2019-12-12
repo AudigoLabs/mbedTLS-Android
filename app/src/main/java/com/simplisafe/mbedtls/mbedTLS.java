@@ -88,13 +88,13 @@ public class mbedTLS {
     private native void setMaximumProtocolVersion(int version);
     private native int executeHandshakeStep();
     private native void enableDebug(int level);
-    private native void fixPeerCert();
     private native int setupSSLContextNative();
     private native int configureClientCertNative(byte[] certificateBytes, byte[] keyPair);
     private native int configureRootCACertNative(byte[] certificateBytes);
     private native byte[] getIssuerNameNative(byte[] certificateBytes);
 
     public native void configureCipherSuites(int[] ciphersuites);
+    public native boolean fixPeerCert(String commonName);
     public native boolean write(byte[] data);
     public native boolean read(int length, byte[] buffer);
 
@@ -172,9 +172,6 @@ public class mbedTLS {
                     case HANDSHAKE_WRAPUP:
                     case HANDSHAKE_COMPLETED:
                         executeNextHandshakeStep();
-                        break;
-                    case SERVER_KEY_EXCHANGE:
-                        fixPeerCert();
                         break;
                     default:
                         break;

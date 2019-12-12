@@ -64,7 +64,7 @@ JNIEXPORT void JNICALL Java_com_simplisafe_mbedtls_mbedTLS_getClassObject(JNIEnv
 
 int write_callback(void *ctx, const unsigned char *buf, size_t len) {
     JNIEnv *env;
-    (*jvm)->AttachCurrentThread(jvm, (void **)&env, NULL);
+    (*jvm)->AttachCurrentThread(jvm, &env, NULL);
     jbyteArray arr = (*env)->NewByteArray(env, (jsize)len);
     (*env)->SetByteArrayRegion(env, arr, 0, (jsize)len, (jbyte*)buf);
     jint result = (*env)->CallIntMethod(env, classReference, writeCallback, arr, len);
@@ -73,7 +73,7 @@ int write_callback(void *ctx, const unsigned char *buf, size_t len) {
 
 int read_callback(void *ctx, unsigned char *buf, size_t len) {
     JNIEnv *env;
-    (*jvm)->AttachCurrentThread(jvm, (void **)&env, NULL);
+    (*jvm)->AttachCurrentThread(jvm, &env, NULL);
     jbyteArray bytesToRead = (*env)->CallObjectMethod(env, classReference, readCallback, len);
     (*env)->GetByteArrayRegion(env, bytesToRead, 0, (jsize)len, (jbyte*)buf);
     return (int)len;
@@ -112,7 +112,7 @@ int get_array_size(const char *arr) {
 
 void debug_msg(void *ctx, int level, const char *file, int line, const char *str) {
     JNIEnv *env;
-    (*jvm)->AttachCurrentThread(jvm, (void **)&env, NULL);
+    (*jvm)->AttachCurrentThread(jvm, &env, NULL);
     jbyteArray fileName = (*env)->NewByteArray(env, get_array_size(file));
     (*env)->SetByteArrayRegion(env, fileName, 0, (jsize)get_array_size(file), (jbyte*)file);
     jbyteArray log = (*env)->NewByteArray(env, get_array_size(str));
@@ -153,19 +153,56 @@ JNIEXPORT jint JNICALL Java_com_simplisafe_mbedtls_mbedTLS_configureRootCACertNa
     }
 }
 
+mbedtls_x509_name* get_common_name(mbedtls_x509_name *subject) {
+    mbedtls_x509_name *data = subject;
+    /*
+    * Gets the subject attributes of the certs and iterates through pointers to get to the common name attribute.
+    * OID for the CN object is 0x55 0x04 0x03 (85 04 03)
+    */
+    while (data != NULL) {
+        if ( (data->oid.p[0] == 0x55) &&
+                (data->oid.p[1] == 0x04) &&
+                (data->oid.p[2] == 0x03) ) {
+            return data;
+        }
+        data = data->next;
+    }
+    return NULL;
+}
+
 JNIEXPORT jbyteArray JNICALL Java_com_simplisafe_mbedtls_mbedTLS_getIssuerNameNative(JNIEnv *env, jobject thisObj, jbyteArray certificateBytes) {
     int len = (*env)->GetArrayLength(env, certificateBytes);
     unsigned char* certificate = (unsigned char*)(*env)->GetByteArrayElements(env, certificateBytes, NULL);
     if (mbedtls_x509_crt_parse(&cert_chain3, certificate, (size_t)len) == 0) {
-        jbyteArray arr = (*env)->NewByteArray(env, 20);
-        (*env)->SetByteArrayRegion(env, arr, 0, 20, (jbyte*)cert_chain3.issuer.next->next->next->next->next->val.p);
+        mbedtls_x509_name* issuer_name = get_common_name(&cert_chain3.issuer);
+        if (issuer_name == NULL) {
+            return NULL;
+        }
+        jbyteArray arr = (*env)->NewByteArray(env, (jsize)issuer_name->val.len);
+        (*env)->SetByteArrayRegion(env, arr, 0, (jsize)issuer_name->val.len, (jbyte*)issuer_name->val.p);
         return arr;
     }
     return NULL;
 }
 
-JNIEXPORT void JNICALL Java_com_simplisafe_mbedtls_mbedTLS_fixPeerCert(JNIEnv *env, jobject thisObj) {
-    ssl_context.session_negotiate->peer_cert = ssl_context.session_negotiate->peer_cert->next;
+JNIEXPORT jboolean JNICALL Java_com_simplisafe_mbedtls_mbedTLS_fixPeerCert(JNIEnv *env, jobject thisObj, jstring commonName) {
+    mbedtls_x509_crt *cert = ssl_context.session_negotiate->peer_cert;
+    while (cert != NULL) {
+        mbedtls_x509_name* common_name = get_common_name(&cert->subject);
+        if (common_name == NULL) {
+            return JNI_FALSE;
+        }
+        jsize stringLength = (*env)->GetStringUTFLength(env, commonName);
+        const char *str = (*env)->GetStringUTFChars(env, commonName, 0);
+        int ret = strncmp((const char*)common_name->val.p, str, (size_t)stringLength);
+
+        if (ret == 0) {
+            ssl_context.session_negotiate->peer_cert = cert;
+            return JNI_TRUE;
+        }
+        cert = cert->next;
+    }
+    return JNI_FALSE;
 }
 
 JNIEXPORT jboolean JNICALL Java_com_simplisafe_mbedtls_mbedTLS_write(JNIEnv *env, jobject thisObj, jbyteArray data) {

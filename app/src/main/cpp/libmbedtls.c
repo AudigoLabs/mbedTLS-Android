@@ -97,7 +97,7 @@ JNIEXPORT void JNICALL Java_com_simplisafe_mbedtls_mbedTLS_setMaximumProtocolVer
 }
 
 JNIEXPORT jint JNICALL Java_com_simplisafe_mbedtls_mbedTLS_executeHandshakeStep(JNIEnv *env, jobject thisObj) {
-    int ret = mbedtls_ssl_handshake_client_step(&ssl_context);
+    int ret = mbedtls_ssl_handshake_step(&ssl_context);
     if (ret != 0) {
         return SS_MBEDTLS_ERR_HANDSHAKE_STEP;
     }

@@ -104,6 +104,10 @@ JNIEXPORT jint JNICALL Java_com_simplisafe_mbedtls_mbedTLS_executeHandshakeStep(
     return ret;
 }
 
+JNIEXPORT jint JNICALL Java_com_simplisafe_mbedtls_mbedTLS_getCurrentHandshakeState(JNIEnv *env, jobject thisObj) {
+    return ssl_context.state;
+}
+
 int get_array_size(const char *arr) {
     int size = 0;
     while (arr[size] != '\0') size++;

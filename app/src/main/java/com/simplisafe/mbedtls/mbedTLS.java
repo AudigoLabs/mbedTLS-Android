@@ -1,7 +1,5 @@
 package com.simplisafe.mbedtls;
 
-import android.util.Log;
-
 import static com.simplisafe.mbedtls.mbedTLSException.ErrorMessage.CONFIG_CLIENT_CERTIFICATE;
 import static com.simplisafe.mbedtls.mbedTLSException.ErrorMessage.ENTROPY;
 import static com.simplisafe.mbedtls.mbedTLSException.ErrorMessage.PARSE_CERTIFICATE;

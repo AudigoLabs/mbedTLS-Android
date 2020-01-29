@@ -132,27 +132,31 @@ JNIEXPORT void JNICALL Java_com_simplisafe_mbedtls_mbedTLS_enableDebug(JNIEnv *e
 JNIEXPORT jint Java_com_simplisafe_mbedtls_mbedTLS_configureClientCertNative(JNIEnv *env, jobject thisObj, jbyteArray certificateBytes, jbyteArray keyPair) {
     int cert_len = (*env)->GetArrayLength(env, certificateBytes);
     int key_pair_len = (*env)->GetArrayLength(env, keyPair);
-    unsigned char* certificate = (unsigned char*)(*env)->GetByteArrayElements(env, certificateBytes, NULL);
-    unsigned char* privateKey = (unsigned char*)(*env)->GetByteArrayElements(env, keyPair, NULL);
-    if (mbedtls_x509_crt_parse(&cert_chain1, certificate, (size_t)cert_len) != 0) {
+    jbyte* certificate = (*env)->GetByteArrayElements(env, certificateBytes, NULL);
+    jbyte* privateKey = (*env)->GetByteArrayElements(env, keyPair, NULL);
+    if (mbedtls_x509_crt_parse(&cert_chain1, (unsigned char*)certificate, (size_t)cert_len) != 0) {
         return SS_MBEDTLS_ERR_PARSE_CERT;
     }
-    if (mbedtls_pk_parse_key(&key_pair, privateKey, (size_t)key_pair_len, NULL, 0) != 0) {
+    if (mbedtls_pk_parse_key(&key_pair, (unsigned char*)privateKey, (size_t)key_pair_len, NULL, 0) != 0) {
         return SS_MBEDTLS_ERR_PARSE_KEY;
     }
     if (mbedtls_ssl_conf_own_cert(&ssl_config, &cert_chain1, &key_pair) != 0) {
         return SS_MBEDTLS_ERR_CONFIG_CLIENT_CERT;
     }
+    (*env)->ReleaseByteArrayElements(env, certificateBytes, certificate, 0);
+    (*env)->ReleaseByteArrayElements(env, keyPair, privateKey, 0);
     return 0;
 }
 
 JNIEXPORT jint JNICALL Java_com_simplisafe_mbedtls_mbedTLS_configureRootCACertNative(JNIEnv *env, jobject thisObj, jbyteArray certificateBytes) {
     int len = (*env)->GetArrayLength(env, certificateBytes);
-    unsigned char* certificate = (unsigned char*)(*env)->GetByteArrayElements(env, certificateBytes, NULL);
-    if (mbedtls_x509_crt_parse(&cert_chain2, certificate, (size_t)len) == 0) {
+    jbyte* certificate = (*env)->GetByteArrayElements(env, certificateBytes, NULL);
+    if (mbedtls_x509_crt_parse(&cert_chain2, (unsigned char*)certificate, (size_t)len) == 0) {
         mbedtls_ssl_conf_ca_chain(&ssl_config, &cert_chain2, NULL);
+        (*env)->ReleaseByteArrayElements(env, certificateBytes, certificate, 0);
         return 0;
     } else {
+        (*env)->ReleaseByteArrayElements(env, certificateBytes, certificate, 0);
         return SS_MBEDTLS_ERR_PARSE_CERT;
     }
 }
@@ -176,16 +180,18 @@ mbedtls_x509_name* get_common_name(mbedtls_x509_name *subject) {
 
 JNIEXPORT jbyteArray JNICALL Java_com_simplisafe_mbedtls_mbedTLS_getIssuerNameNative(JNIEnv *env, jobject thisObj, jbyteArray certificateBytes) {
     int len = (*env)->GetArrayLength(env, certificateBytes);
-    unsigned char* certificate = (unsigned char*)(*env)->GetByteArrayElements(env, certificateBytes, NULL);
-    if (mbedtls_x509_crt_parse(&cert_chain3, certificate, (size_t)len) == 0) {
+    jbyte* certificate = (*env)->GetByteArrayElements(env, certificateBytes, NULL);
+    if (mbedtls_x509_crt_parse(&cert_chain3, (unsigned char*)certificate, (size_t)len) == 0) {
         mbedtls_x509_name* issuer_name = get_common_name(&cert_chain3.issuer);
         if (issuer_name == NULL) {
             return NULL;
         }
         jbyteArray arr = (*env)->NewByteArray(env, (jsize)issuer_name->val.len);
         (*env)->SetByteArrayRegion(env, arr, 0, (jsize)issuer_name->val.len, (jbyte*)issuer_name->val.p);
+        (*env)->ReleaseByteArrayElements(env, certificateBytes, certificate, 0);
         return arr;
     }
+    (*env)->ReleaseByteArrayElements(env, certificateBytes, certificate, 0);
     return NULL;
 }
 
@@ -211,8 +217,9 @@ JNIEXPORT jboolean JNICALL Java_com_simplisafe_mbedtls_mbedTLS_fixPeerCert(JNIEn
 
 JNIEXPORT jboolean JNICALL Java_com_simplisafe_mbedtls_mbedTLS_write(JNIEnv *env, jobject thisObj, jbyteArray data) {
     int len = (*env)->GetArrayLength(env, data);
-    unsigned char* dataToWrite = (unsigned char*)(*env)->GetByteArrayElements(env, data, NULL);
-    if (mbedtls_ssl_write(&ssl_context, dataToWrite, (size_t)len) == len) {
+    jbyte* dataToWrite = (*env)->GetByteArrayElements(env, data, NULL);
+    if (mbedtls_ssl_write(&ssl_context, (unsigned char*)dataToWrite, (size_t)len) == len) {
+        (*env)->ReleaseByteArrayElements(env, data, dataToWrite, 0);
         return JNI_TRUE;
     }
     return JNI_FALSE;

@@ -1,5 +1,7 @@
 package com.simplisafe.mbedtls;
 
+import android.util.Log;
+
 import static com.simplisafe.mbedtls.mbedTLSException.ErrorMessage.CONFIG_CLIENT_CERTIFICATE;
 import static com.simplisafe.mbedtls.mbedTLSException.ErrorMessage.ENTROPY;
 import static com.simplisafe.mbedtls.mbedTLSException.ErrorMessage.PARSE_CERTIFICATE;
@@ -87,6 +89,7 @@ public class mbedTLS {
     private native void setMinimumProtocolVersion(int version);
     private native void setMaximumProtocolVersion(int version);
     private native int executeHandshakeStep();
+    private native int getCurrentHandshakeState();
     private native void enableDebug(int level);
     private native int setupSSLContextNative();
     private native int configureClientCertNative(byte[] certificateBytes, byte[] keyPair);
@@ -154,8 +157,13 @@ public class mbedTLS {
         if (executeHandshakeStep() != 0) {
             throw new mbedTLSException(HANDSHAKE_STEP);
         }
-        currentHandshakeStep = currentHandshakeStep.next();
-        return true;
+        // Check if the ssl_context state is equal to the next enum state that we are expecting.
+        if (getCurrentHandshakeState() == currentHandshakeStep.next().getValue()) {
+            currentHandshakeStep = currentHandshakeStep.next();
+            return true;
+        } else {
+            throw new mbedTLSException(HANDSHAKE_STEP);
+        }
     }
 
     public void executeNextHandshakeStep() throws mbedTLSException {

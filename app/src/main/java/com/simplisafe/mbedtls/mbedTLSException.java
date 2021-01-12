@@ -1,7 +1,18 @@
 package com.simplisafe.mbedtls;
 
 public class mbedTLSException extends Exception {
-    enum ErrorMessage {
+    private final ErrorMessage errorMessage;
+
+    public mbedTLSException(ErrorMessage errorMessage) {
+        super(errorMessage.getMessage());
+        this.errorMessage = errorMessage;
+    }
+
+    public ErrorMessage getErrorMessage() {
+        return errorMessage;
+    }
+
+    public enum ErrorMessage {
         ENTROPY("Entropy setup failed. (mbedtls_ctr_drbg_seed)"),
         SSL_CONFIGURATION("Loading SSL configuration values failed. (mbedtls_ssl_config_defaults)"),
         SSL_SETUP("Setting up SSL Context failed. (mbedtls_ssl_setup)"),
@@ -19,9 +30,5 @@ public class mbedTLSException extends Exception {
         }
 
         String getMessage() { return message; }
-    }
-
-    public mbedTLSException(ErrorMessage errorMessage) {
-        super(errorMessage.getMessage());
     }
 }

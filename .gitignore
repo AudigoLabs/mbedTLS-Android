@@ -1,13 +1,40 @@
-*.iml
-.gradle
+android.iml
 /local.properties
-/.idea/caches
-/.idea/libraries
-/.idea/modules.xml
 /.idea/workspace.xml
-/.idea/navEditor.xml
-/.idea/assetWizardSettings.xml
+/.idea/libraries
+/.idea/inspectionProfiles
+
+# generated files
+bin/
+gen/
+.cxx
+
+# OSX files
 .DS_Store
-/build
-/captures
+
+# Windows thumbnail db
+Thumbs.db
+
+# Android Studio
+*.iws
+*.iml
+.idea
+.gradle
+build/
+*/build/
 .externalNativeBuild
+
+# Local Key Stores
+*.jks
+
+# Signing config
+keystore.properties
+
+#.idea/workspace.xml - remove # and delete .idea if it better suit your needs.
+
+/build
+/apk
+/captures
+
+# For GoCD agent builds
+cruise-output

@@ -195,26 +195,6 @@ JNIEXPORT jbyteArray JNICALL Java_com_simplisafe_mbedtls_mbedTLS_getIssuerNameNa
     return NULL;
 }
 
-JNIEXPORT jboolean JNICALL Java_com_simplisafe_mbedtls_mbedTLS_fixPeerCert(JNIEnv *env, jobject thisObj, jstring commonName) {
-    mbedtls_x509_crt *cert = ssl_context.session_negotiate->peer_cert;
-    while (cert != NULL) {
-        mbedtls_x509_name* common_name = get_common_name(&cert->subject);
-        if (common_name == NULL) {
-            return JNI_FALSE;
-        }
-        jsize stringLength = (*env)->GetStringUTFLength(env, commonName);
-        const char *str = (*env)->GetStringUTFChars(env, commonName, 0);
-        int ret = strncmp((const char*)common_name->val.p, str, (size_t)stringLength);
-
-        if (ret == 0) {
-            ssl_context.session_negotiate->peer_cert = cert;
-            return JNI_TRUE;
-        }
-        cert = cert->next;
-    }
-    return JNI_FALSE;
-}
-
 JNIEXPORT jboolean JNICALL Java_com_simplisafe_mbedtls_mbedTLS_write(JNIEnv *env, jobject thisObj, jbyteArray data) {
     int len = (*env)->GetArrayLength(env, data);
     jbyte* dataToWrite = (*env)->GetByteArrayElements(env, data, NULL);

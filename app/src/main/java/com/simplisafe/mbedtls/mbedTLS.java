@@ -76,7 +76,7 @@ public class mbedTLS {
 
     public mbedTLS() throws mbedTLSException {
         if (init() != 0) {
-            throw new mbedTLSException(ENTROPY);
+            throw new mbedTLSException(ENTROPY, null);
         }
         getClassObject(this);
     }
@@ -95,7 +95,6 @@ public class mbedTLS {
     private native byte[] getIssuerNameNative(byte[] certificateBytes);
 
     public native void configureCipherSuites(int[] ciphersuites);
-    public native boolean fixPeerCert(String commonName);
     public native boolean write(byte[] data);
     public native boolean read(int length, byte[] buffer);
 
@@ -120,47 +119,48 @@ public class mbedTLS {
     public void setupSSLContext() throws mbedTLSException {
         int ret = setupSSLContextNative();
         if (ret == 552) {
-            throw new mbedTLSException(SSL_CONFIGURATION);
+            throw new mbedTLSException(SSL_CONFIGURATION, null);
         } else if (ret == 553) {
-            throw new mbedTLSException(SSL_SETUP);
+            throw new mbedTLSException(SSL_SETUP, null);
         }
     }
 
     public void configureClientCert(byte[] certificateBytes, byte[] keyPair) throws mbedTLSException {
         int ret = configureClientCertNative(certificateBytes, keyPair);
         if (ret == 555) {
-            throw new mbedTLSException(PARSE_CERTIFICATE);
+            throw new mbedTLSException(PARSE_CERTIFICATE, null);
         } else if (ret == 556) {
-            throw new mbedTLSException(PARSE_KEY_PAIR);
+            throw new mbedTLSException(PARSE_KEY_PAIR, null);
         } else if (ret == 557) {
-            throw new mbedTLSException(CONFIG_CLIENT_CERTIFICATE);
+            throw new mbedTLSException(CONFIG_CLIENT_CERTIFICATE, null);
         }
     }
 
     public void configureRootCACert(byte[] certificateBytes) throws mbedTLSException {
         if (configureRootCACertNative(certificateBytes) != 0) {
-            throw new mbedTLSException(PARSE_CERTIFICATE);
+            throw new mbedTLSException(PARSE_CERTIFICATE, null);
         }
     }
 
     public byte[] getIssuerName(byte[] certificateBytes) throws mbedTLSException {
         byte[] issuerName = getIssuerNameNative(certificateBytes);
         if (issuerName == null) {
-            throw new mbedTLSException(PARSE_CERTIFICATE);
+            throw new mbedTLSException(PARSE_CERTIFICATE, null);
         }
         return issuerName;
     }
 
     private boolean handshakeStep() throws mbedTLSException {
-        if (executeHandshakeStep() != 0) {
-            throw new mbedTLSException(HANDSHAKE_STEP);
+        int ret = executeHandshakeStep();
+        if (ret != 0) {
+            throw new mbedTLSException(HANDSHAKE_STEP, ret);
         }
         // Check if the ssl_context state is equal to the next enum state that we are expecting.
         if (getCurrentHandshakeState() == currentHandshakeStep.next().getValue()) {
             currentHandshakeStep = currentHandshakeStep.next();
             return true;
         } else {
-            throw new mbedTLSException(HANDSHAKE_STEP);
+            throw new mbedTLSException(HANDSHAKE_STEP, ret);
         }
     }
 

@@ -1,15 +1,23 @@
 package com.simplisafe.mbedtls;
 
+import androidx.annotation.Nullable;
+
 public class mbedTLSException extends Exception {
     private final ErrorMessage errorMessage;
+    private final Integer errorCode;
 
-    public mbedTLSException(ErrorMessage errorMessage) {
+    public mbedTLSException(ErrorMessage errorMessage, @Nullable Integer errorCode) {
         super(errorMessage.getMessage());
         this.errorMessage = errorMessage;
+        this.errorCode = errorCode;
     }
 
     public ErrorMessage getErrorMessage() {
         return errorMessage;
+    }
+
+    public Integer getErrorCode() {
+        return errorCode;
     }
 
     public enum ErrorMessage {

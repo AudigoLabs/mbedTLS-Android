@@ -40,7 +40,6 @@ JNIEXPORT void JNICALL Java_com_simplisafe_mbedtls_mbedTLS_enableDebug(JNIEnv *,
 JNIEXPORT jint JNICALL Java_com_simplisafe_mbedtls_mbedTLS_configureClientCertNative(JNIEnv *, jobject, jbyteArray, jbyteArray);
 JNIEXPORT jint JNICALL Java_com_simplisafe_mbedtls_mbedTLS_configureRootCACertNative(JNIEnv *, jobject, jbyteArray);
 JNIEXPORT jbyteArray JNICALL Java_com_simplisafe_mbedtls_mbedTLS_getIssuerNameNative(JNIEnv *, jobject, jbyteArray);
-JNIEXPORT jboolean JNICALL Java_com_simplisafe_mbedtls_mbedTLS_fixPeerCert(JNIEnv *, jobject, jstring);
 JNIEXPORT jboolean JNICALL Java_com_simplisafe_mbedtls_mbedTLS_write(JNIEnv *, jobject, jbyteArray);
 JNIEXPORT jboolean JNICALL Java_com_simplisafe_mbedtls_mbedTLS_read(JNIEnv *, jobject, jint, jbyteArray);
 

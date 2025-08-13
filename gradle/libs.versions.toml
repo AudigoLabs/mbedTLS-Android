@@ -1,0 +1,27 @@
+[versions]
+agp = "8.12.0"
+android-annotation = "1.9.1"
+android-espresso = "3.7.0"
+android-test = "1.7.0"
+junit = "4.13.2"
+kotlin = "2.2.0"
+ndk = "27.3.13750724"
+sdkCompile = "36"
+sdkMin = "29"
+sdkTarget = "35"
+vanniktech-publish ="0.34.0"
+
+[libraries]
+android-annotations = { module = "androidx.annotation:annotation", version.ref = "android-annotation" }
+android-espresso = { module = "androidx.test.espresso:espresso-core", version.ref = "android-espresso"}
+android-gradle = { module = "com.android.tools.build:gradle", version.ref = "agp" }
+android-test = { module ="androidx.test:runner", version.ref="android-test" }
+
+
+junit = { module = "junit:junit", version.ref = "junit" }
+
+[plugins]
+android-application = { id = "com.android.application", version.ref = "agp" }
+android-library = { id = "com.android.library", version.ref = "agp" }
+kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
+vanniktech-publish = { id = "com.vanniktech.maven.publish", version.ref = "vanniktech-publish"}

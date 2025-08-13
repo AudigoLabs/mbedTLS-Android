@@ -3,7 +3,8 @@
 
 # Sets the minimum version of CMake required to build the native library.
 
-cmake_minimum_required(VERSION 3.4.1)
+cmake_minimum_required(VERSION 3.15)
+project("mbedtls")
 
 # Creates and names a library, sets it as either STATIC
 # or SHARED, and provides the relative paths to its source code.
@@ -96,7 +97,8 @@ add_library( # Sets the name of the library.
         mbedtls/x509.c
         mbedtls/x509write_crt.c
         mbedtls/x509write_csr.c
-        mbedtls/xtea.c)
+        mbedtls/xtea.c
+)
 
 # Searches for a specified prebuilt library and stores the path as a
 # variable. Because CMake includes system libraries in the search path by
@@ -109,7 +111,8 @@ find_library( # Sets the name of the path variable.
 
         # Specifies the name of the NDK library that
         # you want CMake to locate.
-        log)
+        log
+)
 
 # Specifies libraries CMake should link to your target library. You
 # can link multiple libraries, such as libraries you define in this
@@ -120,4 +123,5 @@ target_link_libraries( # Specifies the target library.
 
         # Links the target library to the log library
         # included in the NDK.
-        ${log-lib})
+        ${log-lib}
+)

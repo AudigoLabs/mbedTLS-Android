@@ -1,5 +1,7 @@
 @file:Suppress("UnstableApiUsage")
 
+import com.android.build.gradle.internal.cxx.configure.gradleLocalProperties
+
 plugins {
     alias(libs.plugins.android.library)
     alias(libs.plugins.kotlin.android)
@@ -43,14 +45,18 @@ android {
     }
 }
 
-mavenPublishing {
+publishing {
     repositories {
         maven {
             name = "GitHubPackages"
             url = uri("https://maven.pkg.github.com/AudigoLabs/mbedTLS-Android")
             credentials {
-                username = System.getenv("GITHUB_ACTOR")
-                password = System.getenv("GITHUB_TOKEN")
+                username = (project.findProperty("gpr.user") as String?)?.takeUnless { it.isBlank() }
+                    ?: System.getenv("USERNAME")
+                            ?: gradleLocalProperties(rootDir, providers).getProperty("github_username")
+                password = (project.findProperty("gpr.key") as String?)?.takeUnless { it.isBlank() }
+                    ?: System.getenv("TOKEN")
+                            ?: gradleLocalProperties(rootDir, providers).getProperty("github_token")
             }
         }
     }

@@ -62,7 +62,7 @@ JNIEXPORT void JNICALL Java_com_simplisafe_mbedtls_MbedTLS_getClassObject(JNIEnv
     debugUtility = (*env)->GetMethodID(env, mbedTLS, "debugUtility", "([BI[B)V");
 }
 
-int write_callback(void *ctx, const unsigned char *buf, size_t len) {
+int write_callback(void *ctx, const unsigned char *buf, int len) {
     JNIEnv *env;
     (*jvm)->AttachCurrentThread(jvm, &env, NULL);
     jbyteArray arr = (*env)->NewByteArray(env, (jsize)len);
@@ -71,7 +71,7 @@ int write_callback(void *ctx, const unsigned char *buf, size_t len) {
     return result;
 }
 
-int read_callback(void *ctx, unsigned char *buf, size_t len) {
+int read_callback(void *ctx, unsigned char *buf, int len) {
     JNIEnv *env;
     (*jvm)->AttachCurrentThread(jvm, &env, NULL);
     jbyteArray bytesToRead = (*env)->CallObjectMethod(env, classReference, readCallback, len);
@@ -80,7 +80,9 @@ int read_callback(void *ctx, unsigned char *buf, size_t len) {
 }
 
 JNIEXPORT void JNICALL Java_com_simplisafe_mbedtls_MbedTLS_setIOFuncs(JNIEnv *env, jobject thisObj, jstring contextParameter) {
-    mbedtls_ssl_set_bio(&ssl_context, &contextParameter, write_callback, read_callback, NULL);
+    mbedtls_ssl_set_bio(&ssl_context, &contextParameter,
+                        (int (*)(void *, const unsigned char *, size_t)) write_callback,
+                        (int (*)(void *, unsigned char *, size_t)) read_callback, NULL);
 }
 
 JNIEXPORT void JNICALL Java_com_simplisafe_mbedtls_MbedTLS_configureCipherSuites(JNIEnv *env, jobject thisObj, jintArray ciphersuites) {

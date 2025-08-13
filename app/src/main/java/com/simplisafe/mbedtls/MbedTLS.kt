@@ -5,10 +5,10 @@ import com.simplisafe.mbedtls.MbedTLSException.ErrorMessage
 @Suppress("UNUSED")
 class MbedTLS {
     interface MbedTLSCallback {
-        fun writeCallback(data: ByteArray?, dataLength: Int): Int
+        fun writeCallback(data: ByteArray, dataLength: Int): Int
         fun readCallback(dataLength: Int): ByteArray?
         fun handshakeCompleted()
-        fun logDebug(fileName: String?, line: Int, log: String?)
+        fun logDebug(fileName: String, line: Int, log: String)
     }
 
     private var callbackMethods: MbedTLSCallback? = null
@@ -89,8 +89,8 @@ class MbedTLS {
         setMaximumProtocolVersion(maximum.value)
     }
 
-    private fun writeCallback(data: ByteArray?, dataLength: Int): Int? {
-        return callbackMethods?.writeCallback(data, dataLength)
+    private fun writeCallback(data: ByteArray, dataLength: Int): Int {
+        return callbackMethods?.writeCallback(data, dataLength) ?: 0
     }
 
     private fun readCallback(dataLength: Int): ByteArray? {

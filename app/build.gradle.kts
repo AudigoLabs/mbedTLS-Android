@@ -6,6 +6,7 @@ plugins {
     alias(libs.plugins.vanniktech.publish)
 }
 
+group = "com.audigolabs.mbedtls"
 version = "1.0.0"
 
 android {

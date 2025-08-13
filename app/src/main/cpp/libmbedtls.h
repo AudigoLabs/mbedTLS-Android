@@ -27,20 +27,20 @@ mbedtls_x509_crt cert_chain2;
 mbedtls_x509_crt cert_chain3;
 mbedtls_pk_context key_pair;
 
-JNIEXPORT jint JNICALL Java_com_simplisafe_mbedtls_mbedTLS_init(JNIEnv *, jobject);
-JNIEXPORT jint JNICALL Java_com_simplisafe_mbedtls_mbedTLS_setupSSLContextNative(JNIEnv *, jobject);
-JNIEXPORT void JNICALL Java_com_simplisafe_mbedtls_mbedTLS_setIOFuncs(JNIEnv *, jobject, jstring);
-JNIEXPORT void JNICALL Java_com_simplisafe_mbedtls_mbedTLS_getClassObject(JNIEnv *, jobject, jobject);
+JNIEXPORT jint JNICALL Java_com_simplisafe_mbedtls_MbedTLS_init(JNIEnv *, jobject);
+JNIEXPORT jint JNICALL Java_com_simplisafe_mbedtls_MbedTLS_setupSSLContextNative(JNIEnv *, jobject);
+JNIEXPORT void JNICALL Java_com_simplisafe_mbedtls_MbedTLS_setIOFuncs(JNIEnv *, jobject, jstring);
+JNIEXPORT void JNICALL Java_com_simplisafe_mbedtls_MbedTLS_getClassObject(JNIEnv *, jobject, jobject);
 JNIEXPORT jint JNICALL Java_com_simplisafe_mbedtls_mbedTLS_executeNextHandshakeStep(JNIEnv *, jobject);
 JNIEXPORT jint JNICALL Java_com_simplisafe_mbedtls_mbedTLS_getCurrentHandshakeState(JNIEnv *, jobject);
-JNIEXPORT void JNICALL Java_com_simplisafe_mbedtls_mbedTLS_configureCipherSuites(JNIEnv *, jobject, jintArray);
-JNIEXPORT void JNICALL Java_com_simplisafe_mbedtls_mbedTLS_setMinimumProtocolVersion(JNIEnv *, jobject, jint);
-JNIEXPORT void JNICALL Java_com_simplisafe_mbedtls_mbedTLS_setMaximumProtocolVersion(JNIEnv *, jobject, jint);
-JNIEXPORT void JNICALL Java_com_simplisafe_mbedtls_mbedTLS_enableDebug(JNIEnv *, jobject, jint);
-JNIEXPORT jint JNICALL Java_com_simplisafe_mbedtls_mbedTLS_configureClientCertNative(JNIEnv *, jobject, jbyteArray, jbyteArray);
-JNIEXPORT jint JNICALL Java_com_simplisafe_mbedtls_mbedTLS_configureRootCACertNative(JNIEnv *, jobject, jbyteArray);
-JNIEXPORT jbyteArray JNICALL Java_com_simplisafe_mbedtls_mbedTLS_getIssuerNameNative(JNIEnv *, jobject, jbyteArray);
-JNIEXPORT jboolean JNICALL Java_com_simplisafe_mbedtls_mbedTLS_write(JNIEnv *, jobject, jbyteArray);
-JNIEXPORT jboolean JNICALL Java_com_simplisafe_mbedtls_mbedTLS_read(JNIEnv *, jobject, jint, jbyteArray);
+JNIEXPORT void JNICALL Java_com_simplisafe_mbedtls_MbedTLS_configureCipherSuites(JNIEnv *, jobject, jintArray);
+JNIEXPORT void JNICALL Java_com_simplisafe_mbedtls_MbedTLS_setMinimumProtocolVersion(JNIEnv *, jobject, jint);
+JNIEXPORT void JNICALL Java_com_simplisafe_mbedtls_MbedTLS_setMaximumProtocolVersion(JNIEnv *, jobject, jint);
+JNIEXPORT void JNICALL Java_com_simplisafe_mbedtls_MbedTLS_enableDebug(JNIEnv *, jobject, jint);
+JNIEXPORT jint JNICALL Java_com_simplisafe_mbedtls_MbedTLS_configureClientCertNative(JNIEnv *, jobject, jbyteArray, jbyteArray);
+JNIEXPORT jint JNICALL Java_com_simplisafe_mbedtls_MbedTLS_configureRootCACertNative(JNIEnv *, jobject, jbyteArray);
+JNIEXPORT jbyteArray JNICALL Java_com_simplisafe_mbedtls_MbedTLS_getIssuerNameNative(JNIEnv *, jobject, jbyteArray);
+JNIEXPORT jboolean JNICALL Java_com_simplisafe_mbedtls_MbedTLS_write(JNIEnv *, jobject, jbyteArray);
+JNIEXPORT jboolean JNICALL Java_com_simplisafe_mbedtls_MbedTLS_read(JNIEnv *, jobject, jint, jbyteArray);
 
 #endif //MBEDTLS_ANDROID_LIBMBEDTLS_H

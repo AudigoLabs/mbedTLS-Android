@@ -65,6 +65,12 @@ class MbedTLS {
     private external fun setIOFuncs(contextParameter: String?)
     private external fun setMinimumProtocolVersion(version: Int)
     private external fun setMaximumProtocolVersion(version: Int)
+    private external fun configurePsk(
+        pskId: CharArray,
+        pskIdLength: Int,
+        pskSecret: ByteArray,
+        pskSecretLength: Int,
+    )
     private external fun executeHandshakeStep(): Int
     private val currentHandshakeState: Int
         external get
@@ -78,6 +84,16 @@ class MbedTLS {
     external fun configureCipherSuites(cipherSuites: IntArray?)
     external fun write(data: ByteArray?): Boolean
     external fun read(length: Int, buffer: ByteArray?): Boolean
+
+    fun configurePsk(pskId: String, pskSecret: ByteArray) {
+        val pskIdCharArray = pskId.toCharArray()
+        configurePsk(
+            pskId = pskIdCharArray,
+            pskIdLength = pskIdCharArray.size,
+            pskSecret = pskSecret,
+            pskSecretLength = pskSecret.size,
+        )
+    }
 
     fun setIOFunctions(contextParameter: String?, callback: MbedTLSCallback) {
         setIOFuncs(contextParameter)

@@ -30,6 +30,7 @@ mbedtls_pk_context key_pair;
 JNIEXPORT jint JNICALL Java_com_simplisafe_mbedtls_MbedTLS_init(JNIEnv *, jobject);
 JNIEXPORT jint JNICALL Java_com_simplisafe_mbedtls_MbedTLS_setupSSLContextNative(JNIEnv *, jobject);
 JNIEXPORT void JNICALL Java_com_simplisafe_mbedtls_MbedTLS_setIOFuncs(JNIEnv *, jobject, jstring);
+JNIEXPORT void JNICALL Java_com_simplisafe_mbedtls_MbedTLS_configurePsk(JNIEnv *, jobject, jcharArray, jint, jbyteArray, jint);
 JNIEXPORT void JNICALL Java_com_simplisafe_mbedtls_MbedTLS_getClassObject(JNIEnv *, jobject, jobject);
 JNIEXPORT jint JNICALL Java_com_simplisafe_mbedtls_mbedTLS_executeNextHandshakeStep(JNIEnv *, jobject);
 JNIEXPORT jint JNICALL Java_com_simplisafe_mbedtls_mbedTLS_getCurrentHandshakeState(JNIEnv *, jobject);

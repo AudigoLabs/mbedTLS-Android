@@ -1,6 +1,8 @@
 package com.simplisafe.mbedtls
 
-class MbedTLSException(val errorMessage: ErrorMessage, val errorCode: Int?) : Exception(errorMessage.message) {
+import java.io.IOException
+
+class MbedTLSException(val errorMessage: ErrorMessage, val errorCode: Int?) : IOException(errorMessage.message) {
     enum class ErrorMessage(val message: String) {
         ENTROPY("Entropy setup failed. (mbedtls_ctr_drbg_seed)"),
         SSL_CONFIGURATION("Loading SSL configuration values failed. (mbedtls_ssl_config_defaults)"),

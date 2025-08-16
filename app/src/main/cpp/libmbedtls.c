@@ -90,6 +90,17 @@ JNIEXPORT void JNICALL Java_com_simplisafe_mbedtls_MbedTLS_configureCipherSuites
     mbedtls_ssl_conf_ciphersuites(&ssl_config, ciphers);
 }
 
+JNIEXPORT void JNICALL Java_com_simplisafe_mbedtls_MbedTLS_configurePsk(
+        JNIEnv *env,
+        jobject thisObj,
+        jcharArray pskId,
+        jint pskIdLength,
+        jbyteArray pskSecret,
+        jint pskSecretLength
+) {
+    mbedtls_ssl_conf_psk(&ssl_config, pskId, pskIdLength, pskSecret, pskSecretLength);
+}
+
 JNIEXPORT void JNICALL Java_com_simplisafe_mbedtls_MbedTLS_setMinimumProtocolVersion(JNIEnv *env, jobject thisObj, jint version) {
     mbedtls_ssl_conf_min_version(&ssl_config, MBEDTLS_SSL_MAJOR_VERSION_3, version);
 }

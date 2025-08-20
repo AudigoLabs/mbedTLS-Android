@@ -9,12 +9,14 @@ ndk = "27.3.13750724"
 sdkCompile = "36"
 sdkMin = "29"
 sdkTarget = "35"
+timber = "5.0.1"
 vanniktech-publish ="0.34.0"
 
 [libraries]
 android-annotations = { module = "androidx.annotation:annotation", version.ref = "android-annotation" }
 android-espresso = { module = "androidx.test.espresso:espresso-core", version.ref = "android-espresso"}
 android-gradle = { module = "com.android.tools.build:gradle", version.ref = "agp" }
+timber = { module = "com.jakewharton.timber:timber", version.ref = "timber"}
 android-test = { module ="androidx.test:runner", version.ref="android-test" }
 
 

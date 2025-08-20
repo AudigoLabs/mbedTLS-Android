@@ -25,6 +25,8 @@
 #define MBEDTLS_SSL_H
 
 #if !defined(MBEDTLS_CONFIG_FILE)
+
+#include <jni.h>
 #include "config.h"
 #else
 #include MBEDTLS_CONFIG_FILE
@@ -470,6 +472,12 @@ mbedtls_ssl_states;
 typedef int mbedtls_ssl_send_t( void *ctx,
                                 const unsigned char *buf,
                                 size_t len );
+
+
+//typedef int mbedtls_io_callback_t(
+//                                const unsigned char *buf,
+//                                size_t len );
+
 
 /**
  * \brief          Callback type: receive data from the network.

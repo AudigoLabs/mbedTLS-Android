@@ -63,6 +63,11 @@
 
 #if defined(MBEDTLS_HAVE_TIME)
 #include "platform_time.h"
+#include "../ssl.h"
+#include "../net_sockets.h"
+#include "../ssl_cache.h"
+#include "../ssl_internal.h"
+
 #endif
 
 #if defined(MBEDTLS_USE_PSA_CRYPTO)
@@ -491,6 +496,10 @@ typedef int mbedtls_ssl_send_t( void *ctx,
  *                 received and written to the buffer.
  */
 typedef int mbedtls_ssl_recv_t( void *ctx,
+                                unsigned char *buf,
+                                size_t len );
+
+typedef int mbedtls_io_callback_t(
                                 unsigned char *buf,
                                 size_t len );
 
@@ -1091,7 +1100,9 @@ struct mbedtls_ssl_context
 #endif /* MBEDTLS_SSL_DTLS_BADMAC_LIMIT */
 
     mbedtls_ssl_send_t *f_send; /*!< Callback for network send */
+    mbedtls_io_callback_t *f_read;
     mbedtls_ssl_recv_t *f_recv; /*!< Callback for network receive */
+    mbedtls_io_callback_t *f_write;
     mbedtls_ssl_recv_timeout_t *f_recv_timeout;
                                 /*!< Callback for network receive with timeout */
 

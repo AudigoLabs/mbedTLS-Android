@@ -9,7 +9,7 @@ plugins {
 }
 
 group = "com.audigolabs.mbedtls"
-version = "1.0.1"
+version = "1.0.4"
 
 android {
     compileSdk = 36
@@ -65,6 +65,7 @@ publishing {
 dependencies {
     implementation(fileTree("libs").matching { include("*.jar") })
     implementation(libs.android.annotations)
+    implementation(libs.timber)
     testImplementation(libs.junit)
     androidTestImplementation(libs.android.test)
     androidTestImplementation(libs.android.espresso)

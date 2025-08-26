@@ -1,19 +1,15 @@
 package com.simplisafe.mbedtls
 
-import com.simplisafe.mbedtls.MbedTLSException.ErrorMessage
+import timber.log.Timber
 
 @Suppress("UNUSED")
 class MbedTLS {
-    interface MbedTLSCallback {
-        fun writeCallback(data: ByteArray, dataLength: Int): Int
-        fun readCallback(dataLength: Int): ByteArray?
-        fun handshakeCompleted()
-        fun logDebug(fileName: String, line: Int, log: String)
-    }
 
     private var callbackMethods: MbedTLSCallback? = null
 
     private var currentHandshakeStep: HandshakeSteps = HandshakeSteps.HELLO_REQUEST
+
+    private var pointer: Long = 0L
 
     enum class HandshakeSteps(val value: Int) {
         HELLO_REQUEST(0),
@@ -53,152 +49,80 @@ class MbedTLS {
         VERBOSE(4)
     }
 
-    init {
-        if (init() != 0) {
-            throw MbedTLSException(ErrorMessage.ENTROPY, null)
-        }
-        getClassObject(this)
+    enum class Transport(val value: Int) {
+        STREAM(0),
+        DATAGRAM(1),
     }
 
-    private external fun init(): Int
-    private external fun getClassObject(mbedtls: MbedTLS?)
-    private external fun setIOFuncs(contextParameter: String?)
-    private external fun setMinimumProtocolVersion(version: Int)
-    private external fun setMaximumProtocolVersion(version: Int)
-    private external fun configurePsk(
-        pskId: CharArray,
-        pskIdLength: Int,
-        pskSecret: ByteArray,
-        pskSecretLength: Int,
-    )
-    private external fun executeHandshakeStep(): Int
+    private external fun deallocateClient(handle: Long)
+    private external fun initClientHandshake(handle: Long): Int
     private val currentHandshakeState: Int
         external get
 
-    private external fun enableDebug(level: Int)
-    private external fun setupSSLContextNative(): Int
-    private external fun configureClientCertNative(certificateBytes: ByteArray?, keyPair: ByteArray?): Int
-    private external fun configureRootCACertNative(certificateBytes: ByteArray?): Int
-    private external fun getIssuerNameNative(certificateBytes: ByteArray?): ByteArray?
+    private external fun clientReadNative(handle: Long, data: ByteArray, dataLength: Int): Int
+    private external fun clientWriteNative(handle: Long, data: ByteArray, dataLength: Int): Int
 
-    external fun configureCipherSuites(cipherSuites: IntArray?)
-    external fun write(data: ByteArray?): Boolean
-    external fun read(length: Int, buffer: ByteArray?): Boolean
+    private external fun initClientImpl(
+        transport: Int,
+        cipherSuites: IntArray,
+        numCipherSuitesLength: Int,
+        psk: ByteArray,
+        pskLength: Int,
+        pskId: ByteArray,
+        pskIdLength: Int,
+    ): Long
 
-    fun configurePsk(pskId: String, pskSecret: ByteArray) {
-        val pskIdCharArray = pskId.toCharArray()
-        configurePsk(
-            pskId = pskIdCharArray,
-            pskIdLength = pskIdCharArray.size,
-            pskSecret = pskSecret,
-            pskSecretLength = pskSecret.size,
-        )
+    fun clientRead(data: ByteArray, dataLength: Int): Int {
+        return clientReadNative(pointer, data, dataLength)
     }
 
-    fun setIOFunctions(contextParameter: String?, callback: MbedTLSCallback) {
-        setIOFuncs(contextParameter)
+    fun clientWrite(data: ByteArray, dataLength: Int): Int {
+        return clientWriteNative(pointer, data, dataLength)
+    }
+
+    fun deallocate() {
+        deallocateClient(pointer)
+        pointer = 0L
+    }
+
+    fun initClient(
+        cipherSuites: IntArray,
+        psk: ByteArray,
+        pskId: String,
+        transport: Transport,
+    ): Boolean {
+        pointer = initClientImpl(
+            transport = transport.value,
+            cipherSuites = cipherSuites,
+            numCipherSuitesLength = cipherSuites.size,
+            psk = psk,
+            pskLength = psk.size,
+            pskId = pskId.toByteArray(),
+            pskIdLength = pskId.toCharArray().size,
+        )
+
+        return pointer != 0L
+    }
+
+    fun setIOFunctions(callback: MbedTLSCallback) {
         callbackMethods = callback
     }
 
-    fun setTLSVersion(minimum: ProtocolVersion, maximum: ProtocolVersion) {
-        setMinimumProtocolVersion(minimum.value)
-        setMaximumProtocolVersion(maximum.value)
+    private fun read(data: ByteArray, dataLength: Int): Int {
+        return callbackMethods?.read(data, dataLength) ?: -0x6900
     }
 
-    private fun writeCallback(data: ByteArray, dataLength: Int): Int {
-        return callbackMethods?.writeCallback(data, dataLength) ?: 0
-    }
-
-    private fun readCallback(dataLength: Int): ByteArray? {
-        return callbackMethods?.readCallback(dataLength)
+    private fun write(data: ByteArray, dataLength: Int): Int {
+        return callbackMethods?.write(data, dataLength) ?: -1
     }
 
     @Throws(MbedTLSException::class)
-    fun setupSSLContext() {
-        when (setupSSLContextNative()) {
-            552 -> throw MbedTLSException(ErrorMessage.SSL_CONFIGURATION, null)
-            553 -> throw MbedTLSException(ErrorMessage.SSL_SETUP, null)
-        }
+    fun initiateClientHandshake(): Int {
+        return initClientHandshake(pointer)
     }
 
-    @Throws(MbedTLSException::class)
-    fun configureClientCert(certificateBytes: ByteArray?, keyPair: ByteArray?) {
-        when (configureClientCertNative(certificateBytes, keyPair)) {
-            555 -> {
-                throw MbedTLSException(ErrorMessage.PARSE_CERTIFICATE, null)
-            }
-
-            556 -> {
-                throw MbedTLSException(ErrorMessage.PARSE_KEY_PAIR, null)
-            }
-
-            557 -> {
-                throw MbedTLSException(ErrorMessage.CONFIG_CLIENT_CERTIFICATE, null)
-            }
-        }
-    }
-
-    @Throws(MbedTLSException::class)
-    fun configureRootCACert(certificateBytes: ByteArray?) {
-        if (configureRootCACertNative(certificateBytes) != 0) {
-            throw MbedTLSException(ErrorMessage.PARSE_CERTIFICATE, null)
-        }
-    }
-
-    @Throws(MbedTLSException::class)
-    fun getIssuerName(certificateBytes: ByteArray?): ByteArray {
-        return getIssuerNameNative(certificateBytes) ?: throw MbedTLSException(ErrorMessage.PARSE_CERTIFICATE, null)
-    }
-
-    @Throws(MbedTLSException::class)
-    private fun handshakeStep(): Boolean {
-        val ret = executeHandshakeStep()
-        if (ret != 0) {
-            throw MbedTLSException(ErrorMessage.HANDSHAKE_STEP, ret)
-        }
-        // Check if the ssl_context state is equal to the next enum state that we are expecting.
-        return if (this.currentHandshakeState == currentHandshakeStep.next().value) {
-            currentHandshakeStep = currentHandshakeStep.next()
-            true
-        } else {
-            throw MbedTLSException(ErrorMessage.HANDSHAKE_STEP, ret)
-        }
-    }
-
-    @Throws(MbedTLSException::class)
-    fun executeNextHandshakeStep() {
-        when (currentHandshakeStep) {
-            HandshakeSteps.HELLO_REQUEST -> {
-                handshakeStep()
-                handshakeStep()
-            }
-
-            HandshakeSteps.HANDSHAKE_COMPLETED -> {
-                callbackMethods?.handshakeCompleted()
-            }
-
-            else -> {
-                if (handshakeStep()) {
-                    when (currentHandshakeStep) {
-                        HandshakeSteps.CLIENT_CERTIFICATE,
-                        HandshakeSteps.FLUSH_BUFFERS,
-                        HandshakeSteps.HANDSHAKE_WRAPUP,
-                        HandshakeSteps.HANDSHAKE_COMPLETED,
-                            -> executeNextHandshakeStep()
-
-                        else -> {}
-                    }
-                }
-            }
-        }
-    }
-
-    fun enableDebugMessages(level: DebugThresholdLevel) {
-        enableDebug(level.value)
-    }
-
-    private fun debugUtility(fileName: ByteArray, lineNumber: Int, log: ByteArray) {
-        callbackMethods?.logDebug(String(fileName), lineNumber, String(log))
+    private fun printDebugMessage(i: Int, iArray: CharArray, j: Int, jArray: CharArray) {
+        Timber.d("$i: ${String(iArray)}, $j: ${String(jArray)}")
     }
 
     companion object {

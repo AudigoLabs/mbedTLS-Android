@@ -2,228 +2,208 @@
 // Created by Siddarth Gandhi on 2019-05-10.
 //
 
+#include "mbedtls/ctr_drbg.h"
+#include "mbedtls/debug.h"
+#include "mbedtls/entropy.h"
+#include "mbedtls/ssl.h"
+#include "mbedtls/timing.h"
 #include <jni.h>
 #include <string.h>
 #include <assert.h>
+#include <stdlib.h>
 #include "libmbedtls.h"
 #include "mbedtls/debug.h"
+#include <android/log.h>
 
-jobject classReference;
-jmethodID writeCallback;
-jmethodID readCallback;
-jmethodID debugUtility;
+_Static_assert(MBEDTLS_CLIENT_READ_SIZE == MBEDTLS_SSL_IN_CONTENT_LEN, "");
+
+typedef struct {
+    int *cipher_suites;
+    struct mbedtls_ssl_context context;
+    struct mbedtls_ssl_config config;
+    struct mbedtls_ctr_drbg_context ctr_drbg;
+    struct mbedtls_entropy_context entropy;
+    struct mbedtls_timing_delay_context timing;
+    jmethodID alReadCallback;
+    jmethodID alWriteCallback;
+    jobject classReference;
+} mbedtls_client_impl_t;
 
 static JavaVM *jvm;
 
-jintArray ciphers;
+#define _LOG_TAG "AL_MbedTLS"
+#define LOG_ERROR(...) __android_log_print(ANDROID_LOG_ERROR, _LOG_TAG, __VA_ARGS__)
+#define LOG_WARN(...) __android_log_print(ANDROID_LOG_WARN, _LOG_TAG, __VA_ARGS__)
+#define LOG_INFO(...) __android_log_print(ANDROID_LOG_INFO, _LOG_TAG, __VA_ARGS__)
+#define LOG_DEBUG(...) __android_log_print(ANDROID_LOG_DEBUG, _LOG_TAG, __VA_ARGS__)
 
-JNIEXPORT jint JNICALL Java_com_simplisafe_mbedtls_MbedTLS_init(JNIEnv *env, jobject thisObj) {
-    mbedtls_ssl_init(&ssl_context);
-    mbedtls_ssl_config_init(&ssl_config);
-    mbedtls_ctr_drbg_init(&random_byte_generator);
-    mbedtls_entropy_init(&entropy_context);
-    mbedtls_x509_crt_init(&cert_chain1);
-    mbedtls_x509_crt_init(&cert_chain2);
-    mbedtls_x509_crt_init(&cert_chain3);
-    mbedtls_pk_init(&key_pair);
-
-    int ret = mbedtls_ctr_drbg_seed(&random_byte_generator, mbedtls_entropy_func, &entropy_context, NULL, 0);
-    if (ret != 0) {
-        return SS_MBEDTLS_ERR_ENTROPY;
-    }
-
-    //Cache JavaVM pointer
-    (*env)->GetJavaVM(env, &jvm);
-
-    return ret;
+static void freeImpl(mbedtls_client_impl_t *impl) {
+    mbedtls_ssl_free(&impl->context);
+    mbedtls_ctr_drbg_free(&impl->ctr_drbg);
+    mbedtls_entropy_free(&impl->entropy);
+    mbedtls_ssl_config_free(&impl->config);
+    free(impl->cipher_suites);
+    free(impl);
 }
 
-JNIEXPORT jint JNICALL Java_com_simplisafe_mbedtls_MbedTLS_setupSSLContextNative(JNIEnv *env, jobject thisObj) {
-    int configureSSL = mbedtls_ssl_config_defaults(&ssl_config, MBEDTLS_SSL_IS_CLIENT, MBEDTLS_SSL_TRANSPORT_STREAM, MBEDTLS_SSL_PRESET_DEFAULT);
-    if (configureSSL != 0) {
-        return SS_MBEDTLS_ERR_SSL_CONFIG;
-    }
-
-    mbedtls_ssl_conf_rng(&ssl_config, mbedtls_ctr_drbg_random, &random_byte_generator);
-
-    int setupSSL = mbedtls_ssl_setup(&ssl_context, &ssl_config);
-    if (setupSSL != 0) {
-        return SS_MBEDTLS_ERR_SSL_SETUP;
-    }
-
-    return 0;
-}
-
-JNIEXPORT void JNICALL Java_com_simplisafe_mbedtls_MbedTLS_getClassObject(JNIEnv *env, jobject thisObj, jobject classref) {
-    classReference = (*env)->NewGlobalRef(env, classref);
-    jclass mbedTLS = (*env)->GetObjectClass(env, classref);
-    writeCallback = (*env)->GetMethodID(env, mbedTLS, "writeCallback", "([BI)I");
-    readCallback = (*env)->GetMethodID(env, mbedTLS, "readCallback", "(I)[B");
-    debugUtility = (*env)->GetMethodID(env, mbedTLS, "debugUtility", "([BI[B)V");
-}
-
-int write_callback(void *ctx, const unsigned char *buf, int len) {
+static int write_callback(void *ctx, const unsigned char *buf, size_t len) {
+    mbedtls_client_impl_t *impl = ctx;
     JNIEnv *env;
     (*jvm)->AttachCurrentThread(jvm, &env, NULL);
-    jbyteArray arr = (*env)->NewByteArray(env, (jsize)len);
-    (*env)->SetByteArrayRegion(env, arr, 0, (jsize)len, (jbyte*)buf);
-    jint result = (*env)->CallIntMethod(env, classReference, writeCallback, arr, len);
+    jbyteArray arr = (*env)->NewByteArray(env, (jsize) len);
+    (*env)->SetByteArrayRegion(env, arr, 0, (jsize) len, (jbyte *) buf);
+
+    jint result = (*env)->CallIntMethod(env, impl->classReference, impl->alWriteCallback, arr, (jint) len);
+
+    (*env)->DeleteLocalRef(env, arr);
+
     return result;
 }
 
-int read_callback(void *ctx, unsigned char *buf, int len) {
+static int read_callback(void *ctx, unsigned char *buf, size_t len) {
     JNIEnv *env;
+    mbedtls_client_impl_t *impl = ctx;
     (*jvm)->AttachCurrentThread(jvm, &env, NULL);
-    jbyteArray bytesToRead = (*env)->CallObjectMethod(env, classReference, readCallback, len);
-    (*env)->GetByteArrayRegion(env, bytesToRead, 0, (jsize)len, (jbyte*)buf);
-    return (int)len;
+    jbyteArray arr = (*env)->NewByteArray(env, (jsize) len);
+
+    // call Kotlin method returning Int
+    jint bytesRead = (*env)->CallIntMethod(env, impl->classReference, impl->alReadCallback, arr, (jint) len);
+
+    if (bytesRead > 0) {
+        (*env)->GetByteArrayRegion(env, arr, 0, (jsize) bytesRead, (jbyte *) buf);
+    }
+
+    (*env)->DeleteLocalRef(env, arr);
+    return (int) bytesRead;
 }
 
-JNIEXPORT void JNICALL Java_com_simplisafe_mbedtls_MbedTLS_setIOFuncs(JNIEnv *env, jobject thisObj, jstring contextParameter) {
-    mbedtls_ssl_set_bio(&ssl_context, &contextParameter,
-                        (int (*)(void *, const unsigned char *, size_t)) write_callback,
-                        (int (*)(void *, unsigned char *, size_t)) read_callback, NULL);
+static void debug_msg(void *ctx, int level, const char *file, int line, const char *str) {
+    LOG_INFO("%s", str);
 }
 
-JNIEXPORT void JNICALL Java_com_simplisafe_mbedtls_MbedTLS_configureCipherSuites(JNIEnv *env, jobject thisObj, jintArray ciphersuites) {
-    ciphers = (*env)->GetIntArrayElements(env, ciphersuites, 0);
-    mbedtls_ssl_conf_ciphersuites(&ssl_config, ciphers);
-}
-
-JNIEXPORT void JNICALL Java_com_simplisafe_mbedtls_MbedTLS_configurePsk(
+JNIEXPORT void JNICALL Java_com_simplisafe_mbedtls_MbedTLS_deallocateClient(
         JNIEnv *env,
         jobject thisObj,
-        jcharArray pskId,
-        jint pskIdLength,
-        jbyteArray pskSecret,
-        jint pskSecretLength
+        jlong handle
 ) {
-    mbedtls_ssl_conf_psk(&ssl_config, pskId, pskIdLength, pskSecret, pskSecretLength);
+    mbedtls_client_impl_t *impl = (mbedtls_client_impl_t *) handle;
+    freeImpl(impl);
 }
 
-JNIEXPORT void JNICALL Java_com_simplisafe_mbedtls_MbedTLS_setMinimumProtocolVersion(JNIEnv *env, jobject thisObj, jint version) {
-    mbedtls_ssl_conf_min_version(&ssl_config, MBEDTLS_SSL_MAJOR_VERSION_3, version);
-}
+JNIEXPORT jlong JNICALL Java_com_simplisafe_mbedtls_MbedTLS_initClientImpl(
+        JNIEnv *env,
+        jobject thisObj,
+        jint transport,
+        jintArray cipher_suites,
+        jint num_cipher_suites,
+        jbyteArray psk,
+        jint psk_len,
+        jbyteArray psk_id,
+        jint psk_id_len
+) {
+    (*env)->GetJavaVM(env, &jvm);
+    int err_out = 0;
+    jint *ciphers = (*env)->GetIntArrayElements(env, cipher_suites, 0);
 
-JNIEXPORT void JNICALL Java_com_simplisafe_mbedtls_MbedTLS_setMaximumProtocolVersion(JNIEnv *env, jobject thisObj, jint version) {
-    mbedtls_ssl_conf_max_version(&ssl_config, MBEDTLS_SSL_MAJOR_VERSION_3, version);
-}
+    mbedtls_client_impl_t *impl = malloc(sizeof(mbedtls_client_impl_t));
+    jclass mbedTLS = (*env)->GetObjectClass(env, thisObj);
 
-JNIEXPORT jint JNICALL Java_com_simplisafe_mbedtls_MbedTLS_executeHandshakeStep(JNIEnv *env, jobject thisObj) {
-    int ret = mbedtls_ssl_handshake_step(&ssl_context);
-    if (ret != 0) {
-        return SS_MBEDTLS_ERR_HANDSHAKE_STEP;
-    }
-    return ret;
-}
+    memset(impl, 0, sizeof(*impl));
+    impl->cipher_suites = calloc(num_cipher_suites + 1, sizeof(int));
+    memcpy(impl->cipher_suites, ciphers, num_cipher_suites * sizeof(int));
+    impl->cipher_suites[num_cipher_suites] = 0;
+    impl->alReadCallback = (*env)->GetMethodID(env, mbedTLS, "read", "([BI)I");
+    impl->alWriteCallback = (*env)->GetMethodID(env, mbedTLS, "write", "([BI)I");
+    impl->classReference = (*env)->NewGlobalRef(env, thisObj);
 
-JNIEXPORT jint JNICALL Java_com_simplisafe_mbedtls_mbedTLS_getCurrentHandshakeState(JNIEnv *env, jobject thisObj) {
-    return ssl_context.state;
-}
+    uint8_t psk_buff[psk_len] = {};
+    (*env)->GetByteArrayRegion(env, psk, 0, (jsize) psk_len, (jbyte *) psk_buff);
 
-int get_array_size(const char *arr) {
-    int size = 0;
-    while (arr[size] != '\0') size++;
-    return size;
-}
+    uint8_t psk_id_buf[psk_id_len + 1] = {};
+    (*env)->GetByteArrayRegion(env, psk_id, 0, (jsize) psk_id_len, (jbyte *) psk_id_buf);
 
-void debug_msg(void *ctx, int level, const char *file, int line, const char *str) {
-    JNIEnv *env;
-    (*jvm)->AttachCurrentThread(jvm, &env, NULL);
-    jbyteArray fileName = (*env)->NewByteArray(env, get_array_size(file));
-    (*env)->SetByteArrayRegion(env, fileName, 0, (jsize)get_array_size(file), (jbyte*)file);
-    jbyteArray log = (*env)->NewByteArray(env, get_array_size(str));
-    (*env)->SetByteArrayRegion(env, log, 0, (jsize)get_array_size(str), (jbyte*)str);
-    (*env)->CallVoidMethod(env, classReference, debugUtility, fileName, line, log);
-}
+    mbedtls_ssl_init(&impl->context);
+    mbedtls_ssl_config_init(&impl->config);
+    mbedtls_ctr_drbg_init(&impl->ctr_drbg);
+    mbedtls_entropy_init(&impl->entropy);
 
-JNIEXPORT void JNICALL Java_com_simplisafe_mbedtls_MbedTLS_enableDebug(JNIEnv *env, jobject thisObj, jint level) {
-    mbedtls_debug_set_threshold(level);
-    mbedtls_ssl_conf_dbg(&ssl_config, debug_msg, stdout);
-}
-
-JNIEXPORT jint Java_com_simplisafe_mbedtls_MbedTLS_configureClientCertNative(JNIEnv *env, jobject thisObj, jbyteArray certificateBytes, jbyteArray keyPair) {
-    int cert_len = (*env)->GetArrayLength(env, certificateBytes);
-    int key_pair_len = (*env)->GetArrayLength(env, keyPair);
-    jbyte* certificate = (*env)->GetByteArrayElements(env, certificateBytes, NULL);
-    jbyte* privateKey = (*env)->GetByteArrayElements(env, keyPair, NULL);
-    if (mbedtls_x509_crt_parse(&cert_chain1, (unsigned char*)certificate, (size_t)cert_len) != 0) {
-        return SS_MBEDTLS_ERR_PARSE_CERT;
-    }
-    if (mbedtls_pk_parse_key(&key_pair, (unsigned char*)privateKey, (size_t)key_pair_len, NULL, 0) != 0) {
-        return SS_MBEDTLS_ERR_PARSE_KEY;
-    }
-    if (mbedtls_ssl_conf_own_cert(&ssl_config, &cert_chain1, &key_pair) != 0) {
-        return SS_MBEDTLS_ERR_CONFIG_CLIENT_CERT;
-    }
-    (*env)->ReleaseByteArrayElements(env, certificateBytes, certificate, 0);
-    (*env)->ReleaseByteArrayElements(env, keyPair, privateKey, 0);
-    return 0;
-}
-
-JNIEXPORT jint JNICALL Java_com_simplisafe_mbedtls_MbedTLS_configureRootCACertNative(JNIEnv *env, jobject thisObj, jbyteArray certificateBytes) {
-    int len = (*env)->GetArrayLength(env, certificateBytes);
-    jbyte* certificate = (*env)->GetByteArrayElements(env, certificateBytes, NULL);
-    if (mbedtls_x509_crt_parse(&cert_chain2, (unsigned char*)certificate, (size_t)len) == 0) {
-        mbedtls_ssl_conf_ca_chain(&ssl_config, &cert_chain2, NULL);
-        (*env)->ReleaseByteArrayElements(env, certificateBytes, certificate, 0);
+    if (mbedtls_ctr_drbg_seed(&impl->ctr_drbg, mbedtls_entropy_func, &impl->entropy, NULL, 0)) {
+        freeImpl(impl);
         return 0;
-    } else {
-        (*env)->ReleaseByteArrayElements(env, certificateBytes, certificate, 0);
-        return SS_MBEDTLS_ERR_PARSE_CERT;
     }
+
+    if (mbedtls_ssl_config_defaults(&impl->config, MBEDTLS_SSL_IS_CLIENT, transport,
+                                    MBEDTLS_SSL_PRESET_DEFAULT)) {
+        freeImpl(impl);
+        return 0;
+    }
+
+    mbedtls_ssl_conf_rng(&impl->config, mbedtls_ctr_drbg_random, &impl->ctr_drbg);
+    mbedtls_ssl_conf_ciphersuites(&impl->config, impl->cipher_suites);
+
+    if (mbedtls_ssl_conf_psk(&impl->config, psk_buff, psk_len, psk_id_buf, psk_id_len)) {
+        freeImpl(impl);
+        return 0;
+    }
+
+    mbedtls_debug_set_threshold(1);
+    mbedtls_ssl_conf_dbg(&impl->config, debug_msg, NULL);
+
+    if (mbedtls_ssl_setup(&impl->context, &impl->config)) {
+        freeImpl(impl);
+        return 0;
+    }
+
+    mbedtls_ssl_set_timer_cb(&impl->context, &impl->timing, mbedtls_timing_set_delay, mbedtls_timing_get_delay);
+
+    mbedtls_ssl_set_bio(
+            &impl->context,
+            impl,
+            write_callback,
+            read_callback,
+            NULL
+    );
+
+    return (jlong) impl;
 }
 
-mbedtls_x509_name* get_common_name(mbedtls_x509_name *subject) {
-    mbedtls_x509_name *data = subject;
-    /*
-    * Gets the subject attributes of the certs and iterates through pointers to get to the common name attribute.
-    * OID for the CN object is 0x55 0x04 0x03 (85 04 03)
-    */
-    while (data != NULL) {
-        if ( (data->oid.p[0] == 0x55) &&
-                (data->oid.p[1] == 0x04) &&
-                (data->oid.p[2] == 0x03) ) {
-            return data;
-        }
-        data = data->next;
-    }
-    return NULL;
+JNIEXPORT jint JNICALL Java_com_simplisafe_mbedtls_MbedTLS_initClientHandshake(
+        JNIEnv *env,
+        jobject thisObj,
+        jlong handle
+) {
+    mbedtls_client_impl_t *impl = (mbedtls_client_impl_t *) handle;
+    return mbedtls_ssl_handshake(&impl->context);
 }
 
-JNIEXPORT jbyteArray JNICALL Java_com_simplisafe_mbedtls_MbedTLS_getIssuerNameNative(JNIEnv *env, jobject thisObj, jbyteArray certificateBytes) {
-    int len = (*env)->GetArrayLength(env, certificateBytes);
-    jbyte* certificate = (*env)->GetByteArrayElements(env, certificateBytes, NULL);
-    if (mbedtls_x509_crt_parse(&cert_chain3, (unsigned char*)certificate, (size_t)len) == 0) {
-        mbedtls_x509_name* issuer_name = get_common_name(&cert_chain3.issuer);
-        if (issuer_name == NULL) {
-            return NULL;
-        }
-        jbyteArray arr = (*env)->NewByteArray(env, (jsize)issuer_name->val.len);
-        (*env)->SetByteArrayRegion(env, arr, 0, (jsize)issuer_name->val.len, (jbyte*)issuer_name->val.p);
-        (*env)->ReleaseByteArrayElements(env, certificateBytes, certificate, 0);
-        return arr;
-    }
-    (*env)->ReleaseByteArrayElements(env, certificateBytes, certificate, 0);
-    return NULL;
+JNIEXPORT jint JNICALL
+Java_com_simplisafe_mbedtls_MbedTLS_clientWriteNative(
+        JNIEnv *env,
+        jobject thisObj,
+        jlong handle,
+        jbyteArray data,
+        jint length) {
+    mbedtls_client_impl_t *impl = (mbedtls_client_impl_t *) handle;
+
+    uint8_t buf[length] = {};
+    (*env)->GetByteArrayRegion(env, data, 0, (jsize) length, (jbyte *) buf);
+
+    return mbedtls_ssl_write(&impl->context, buf, length);
 }
 
-JNIEXPORT jboolean JNICALL Java_com_simplisafe_mbedtls_MbedTLS_write(JNIEnv *env, jobject thisObj, jbyteArray data) {
-    int len = (*env)->GetArrayLength(env, data);
-    jbyte* dataToWrite = (*env)->GetByteArrayElements(env, data, NULL);
-    if (mbedtls_ssl_write(&ssl_context, (unsigned char*)dataToWrite, (size_t)len) == len) {
-        (*env)->ReleaseByteArrayElements(env, data, dataToWrite, 0);
-        return JNI_TRUE;
-    }
-    return JNI_FALSE;
-}
+JNIEXPORT jint JNICALL
+Java_com_simplisafe_mbedtls_MbedTLS_clientReadNative(
+        JNIEnv *env,
+        jobject thisObj,
+        jlong handle,
+        jbyteArray data,
+        jint length) {
+    mbedtls_client_impl_t *impl = (mbedtls_client_impl_t *) handle;
 
-JNIEXPORT jboolean JNICALL Java_com_simplisafe_mbedtls_MbedTLS_read(JNIEnv *env, jobject thisObj, jint length, jbyteArray buffer) {
-    unsigned char arr[length];
-    if (mbedtls_ssl_read(&ssl_context, arr, (size_t)length) < 0) {
-        return JNI_FALSE;
-    } else {
-        (*env)->SetByteArrayRegion(env, buffer, 0, (jsize)length, (jbyte*)arr);
-        return JNI_TRUE;
+    uint8_t buf[length] = {};
+    int bytesRead = mbedtls_ssl_read(&impl->context, buf, length);
+    if (bytesRead > 0) {
+        (*env)->SetByteArrayRegion(env, data, 0, bytesRead, (jbyte *) buf);
     }
+    return bytesRead;
 }

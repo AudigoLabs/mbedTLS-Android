@@ -39,8 +39,6 @@ JNIEXPORT void JNICALL Java_com_simplisafe_mbedtls_MbedTLS_setIOFuncs(JNIEnv *, 
 JNIEXPORT void JNICALL
 Java_com_simplisafe_mbedtls_MbedTLS_configurePsk(JNIEnv *, jobject, jcharArray, jint, jbyteArray, jint);
 
-JNIEXPORT void JNICALL Java_com_simplisafe_mbedtls_MbedTLS_getClassObject(JNIEnv *, jobject, jobject);
-
 JNIEXPORT jint JNICALL Java_com_simplisafe_mbedtls_mbedTLS_executeNextHandshakeStep(JNIEnv *, jobject);
 
 JNIEXPORT jint JNICALL Java_com_simplisafe_mbedtls_mbedTLS_getCurrentHandshakeState(JNIEnv *, jobject);
@@ -66,7 +64,7 @@ JNIEXPORT jboolean JNICALL Java_com_simplisafe_mbedtls_MbedTLS_read(JNIEnv *, jo
 
 #endif //MBEDTLS_ANDROID_LIBMBEDTLS_H
 
-JNIEXPORT void JNICALL Java_com_simplisafe_mbedtls_MbedTLS_initClientImpl(
+JNIEXPORT jlong JNICALL Java_com_simplisafe_mbedtls_MbedTLS_initClientImpl(
         JNIEnv *env,
         jobject thisObj,
         jint transport,
@@ -74,15 +72,18 @@ JNIEXPORT void JNICALL Java_com_simplisafe_mbedtls_MbedTLS_initClientImpl(
         jint num_cipher_suites,
         jbyteArray psk,
         jint psk_len,
-        jcharArray psk_id,
-        jint psk_id_len,
-        jobject io_context
+        jbyteArray psk_id,
+        jint psk_id_len
 );
 
-JNIEXPORT void Java_com_simplisafe_mbedtls_MbedTLS_mbedtls_client_free(JNIEnv *env,jobject thisObj);
+JNIEXPORT void Java_com_simplisafe_mbedtls_MbedTLS_deallocateClient(JNIEnv *env, jobject thisObj, jlong handle);
 
-JNIEXPORT jint Java_com_simplisafe_mbedtls_MbedTLS_initClientHandshake(JNIEnv *env, jobject thisObj);
+JNIEXPORT jint Java_com_simplisafe_mbedtls_MbedTLS_initClientHandshake(JNIEnv *env, jobject thisObj, jlong handle);
 
-JNIEXPORT jint Java_com_simplisafe_mbedtls_MbedTLS_mbedtls_client_write(JNIEnv *env, jobject thisObj, const uint8_t *data, size_t length);
+JNIEXPORT jint JNICALL
+Java_com_simplisafe_mbedtls_MbedTLS_clientWriteNative(JNIEnv *env, jobject thisObj, jlong handle, jbyteArray data,
+                                                      jint length);
 
-JNIEXPORT jint Java_com_simplisafe_mbedtls_MbedTLS_mbedtls_client_read(JNIEnv *env, jobject thisObj, uint8_t *data, size_t length);
+JNIEXPORT jint JNICALL
+Java_com_simplisafe_mbedtls_MbedTLS_clientReadNative(JNIEnv *env, jobject thisObj, jlong handle, jbyteArray data,
+                                                     jint length);

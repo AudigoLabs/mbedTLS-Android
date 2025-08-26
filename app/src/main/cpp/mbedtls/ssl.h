@@ -474,11 +474,6 @@ typedef int mbedtls_ssl_send_t( void *ctx,
                                 size_t len );
 
 
-//typedef int mbedtls_io_callback_t(
-//                                const unsigned char *buf,
-//                                size_t len );
-
-
 /**
  * \brief          Callback type: receive data from the network.
  *

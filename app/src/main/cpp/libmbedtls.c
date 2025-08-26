@@ -77,7 +77,7 @@ static int read_callback(void *ctx, unsigned char *buf, size_t len) {
     return (int) bytesRead;
 }
 
-void debug_msg(void *ctx, int level, const char *file, int line, const char *str) {
+static void debug_msg(void *ctx, int level, const char *file, int line, const char *str) {
     LOG_INFO("%s", str);
 }
 

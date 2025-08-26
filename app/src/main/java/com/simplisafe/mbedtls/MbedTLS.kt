@@ -9,7 +9,7 @@ class MbedTLS {
 
     private var currentHandshakeStep: HandshakeSteps = HandshakeSteps.HELLO_REQUEST
 
-    internal var pointer: Long = 0L
+    private var pointer: Long = 0L
 
     enum class HandshakeSteps(val value: Int) {
         HELLO_REQUEST(0),
@@ -80,8 +80,6 @@ class MbedTLS {
         return clientWriteNative(pointer, data, dataLength)
     }
 
-    fun configurePsk(pskId: String, pskSecret: ByteArray) {}
-
     fun deallocate() {
         deallocateClient(pointer)
         pointer = 0L
@@ -106,7 +104,7 @@ class MbedTLS {
         return pointer != 0L
     }
 
-    fun setIOFunctions(contextParameter: String?, callback: MbedTLSCallback) {
+    fun setIOFunctions(callback: MbedTLSCallback) {
         callbackMethods = callback
     }
 
@@ -125,10 +123,6 @@ class MbedTLS {
 
     private fun printDebugMessage(i: Int, iArray: CharArray, j: Int, jArray: CharArray) {
         Timber.d("$i: ${String(iArray)}, $j: ${String(jArray)}")
-    }
-
-    private fun debugUtility(fileName: ByteArray, lineNumber: Int, log: ByteArray) {
-        callbackMethods?.logDebug(String(fileName), lineNumber, String(log))
     }
 
     companion object {

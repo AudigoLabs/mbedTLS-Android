@@ -19,8 +19,6 @@
 #define SS_MBEDTLS_ERR_PARSE_KEY 556
 #define SS_MBEDTLS_ERR_CONFIG_CLIENT_CERT 557
 
-typedef void *mbedtls_client_handle_t;
-
 mbedtls_ssl_context ssl_context;
 mbedtls_ssl_config ssl_config;
 mbedtls_ctr_drbg_context random_byte_generator;

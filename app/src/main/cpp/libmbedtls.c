@@ -46,7 +46,7 @@ static void freeImpl(mbedtls_client_impl_t *impl) {
     free(impl);
 }
 
-int write_callback(void *ctx, const unsigned char *buf, size_t len) {
+static int write_callback(void *ctx, const unsigned char *buf, size_t len) {
     mbedtls_client_impl_t *impl = ctx;
     JNIEnv *env;
     (*jvm)->AttachCurrentThread(jvm, &env, NULL);
@@ -60,7 +60,7 @@ int write_callback(void *ctx, const unsigned char *buf, size_t len) {
     return result;
 }
 
-int read_callback(void *ctx, unsigned char *buf, size_t len) {
+static int read_callback(void *ctx, unsigned char *buf, size_t len) {
     JNIEnv *env;
     mbedtls_client_impl_t *impl = ctx;
     (*jvm)->AttachCurrentThread(jvm, &env, NULL);

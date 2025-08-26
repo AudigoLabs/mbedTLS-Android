@@ -9,7 +9,7 @@ plugins {
 }
 
 group = "com.audigolabs.mbedtls"
-version = "1.0.2"
+version = "1.0.3"
 
 android {
     compileSdk = 36

@@ -9,7 +9,7 @@ plugins {
 }
 
 group = "com.audigolabs.mbedtls"
-version = "1.0.4"
+version = "1.0.5"
 
 android {
     compileSdk = 36
@@ -18,6 +18,7 @@ android {
         compileSdk = 36
         ndkVersion = libs.versions.ndk.get()
         minSdk = libs.versions.sdkMin.get().toInt()
+        consumerProguardFiles("proguard-rules.pro")
 
         externalNativeBuild {
             cmake {

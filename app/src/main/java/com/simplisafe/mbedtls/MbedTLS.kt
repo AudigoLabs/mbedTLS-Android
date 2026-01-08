@@ -3,7 +3,7 @@ package com.simplisafe.mbedtls
 import timber.log.Timber
 
 @Suppress("UNUSED")
-class MbedTLS {
+class MbedTLS : AutoCloseable {
 
     private var callbackMethods: MbedTLSCallback? = null
 
@@ -80,9 +80,21 @@ class MbedTLS {
         return clientWriteNative(pointer, data, dataLength)
     }
 
+    override fun close() {
+        deallocate()
+    }
+
     fun deallocate() {
-        deallocateClient(pointer)
-        pointer = 0L
+        if (pointer != C_NULL_PTR) {
+            runCatching {
+                deallocateClient(pointer)
+            }
+            pointer = C_NULL_PTR
+        }
+    }
+
+    protected fun finalize() {
+        close()
     }
 
     fun initClient(
@@ -131,3 +143,6 @@ class MbedTLS {
         }
     }
 }
+
+
+private const val C_NULL_PTR = 0L

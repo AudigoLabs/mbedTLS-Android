@@ -37,7 +37,13 @@ static JavaVM *jvm;
 #define LOG_INFO(...) __android_log_print(ANDROID_LOG_INFO, _LOG_TAG, __VA_ARGS__)
 #define LOG_DEBUG(...) __android_log_print(ANDROID_LOG_DEBUG, _LOG_TAG, __VA_ARGS__)
 
-static void freeImpl(mbedtls_client_impl_t *impl) {
+static void freeImpl(JNIEnv *env, mbedtls_client_impl_t *impl) {
+    if (impl == NULL) {
+        return;
+    }
+    if (impl->classReference) {
+        (*env)->DeleteGlobalRef(env, impl->classReference);
+    }
     mbedtls_ssl_free(&impl->context);
     mbedtls_ctr_drbg_free(&impl->ctr_drbg);
     mbedtls_entropy_free(&impl->entropy);
@@ -51,6 +57,10 @@ static int write_callback(void *ctx, const unsigned char *buf, size_t len) {
     JNIEnv *env;
     (*jvm)->AttachCurrentThread(jvm, &env, NULL);
     jbyteArray arr = (*env)->NewByteArray(env, (jsize) len);
+    if (arr == NULL) {
+        // Out of memory
+        return -1;
+    }
     (*env)->SetByteArrayRegion(env, arr, 0, (jsize) len, (jbyte *) buf);
 
     jint result = (*env)->CallIntMethod(env, impl->classReference, impl->alWriteCallback, arr, (jint) len);
@@ -65,6 +75,10 @@ static int read_callback(void *ctx, unsigned char *buf, size_t len) {
     mbedtls_client_impl_t *impl = ctx;
     (*jvm)->AttachCurrentThread(jvm, &env, NULL);
     jbyteArray arr = (*env)->NewByteArray(env, (jsize) len);
+    if (arr == NULL) {
+        // Out of memory
+        return -1;
+    }
 
     // call Kotlin method returning Int
     jint bytesRead = (*env)->CallIntMethod(env, impl->classReference, impl->alReadCallback, arr, (jint) len);
@@ -87,7 +101,7 @@ JNIEXPORT void JNICALL Java_com_simplisafe_mbedtls_MbedTLS_deallocateClient(
         jlong handle
 ) {
     mbedtls_client_impl_t *impl = (mbedtls_client_impl_t *) handle;
-    freeImpl(impl);
+    freeImpl(env, impl);
 }
 
 JNIEXPORT jlong JNICALL Java_com_simplisafe_mbedtls_MbedTLS_initClientImpl(
@@ -102,19 +116,37 @@ JNIEXPORT jlong JNICALL Java_com_simplisafe_mbedtls_MbedTLS_initClientImpl(
         jint psk_id_len
 ) {
     (*env)->GetJavaVM(env, &jvm);
-    int err_out = 0;
-    jint *ciphers = (*env)->GetIntArrayElements(env, cipher_suites, 0);
-
     mbedtls_client_impl_t *impl = malloc(sizeof(mbedtls_client_impl_t));
-    jclass mbedTLS = (*env)->GetObjectClass(env, thisObj);
-
+    if (impl == NULL) {
+        return 0;
+    }
     memset(impl, 0, sizeof(*impl));
+
     impl->cipher_suites = calloc(num_cipher_suites + 1, sizeof(int));
+    if (impl->cipher_suites == NULL) {
+        freeImpl(env, impl);
+        return 0;
+    }
+
+    jint *ciphers = (*env)->GetIntArrayElements(env, cipher_suites, 0);
+    if (ciphers == NULL) {
+        freeImpl(env, impl);
+        return 0;
+    }
     memcpy(impl->cipher_suites, ciphers, num_cipher_suites * sizeof(int));
     impl->cipher_suites[num_cipher_suites] = 0;
+    (*env)->ReleaseIntArrayElements(env, cipher_suites, ciphers, JNI_ABORT);
+
+
+    jclass mbedTLS = (*env)->GetObjectClass(env, thisObj);
     impl->alReadCallback = (*env)->GetMethodID(env, mbedTLS, "read", "([BI)I");
     impl->alWriteCallback = (*env)->GetMethodID(env, mbedTLS, "write", "([BI)I");
     impl->classReference = (*env)->NewGlobalRef(env, thisObj);
+    if (impl->classReference == NULL) {
+        freeImpl(env, impl);
+        return 0;
+    }
+
 
     uint8_t psk_buff[psk_len] = {};
     (*env)->GetByteArrayRegion(env, psk, 0, (jsize) psk_len, (jbyte *) psk_buff);
@@ -127,30 +159,30 @@ JNIEXPORT jlong JNICALL Java_com_simplisafe_mbedtls_MbedTLS_initClientImpl(
     mbedtls_ctr_drbg_init(&impl->ctr_drbg);
     mbedtls_entropy_init(&impl->entropy);
 
-    if (mbedtls_ctr_drbg_seed(&impl->ctr_drbg, mbedtls_entropy_func, &impl->entropy, NULL, 0)) {
-        freeImpl(impl);
+    if (mbedtls_ctr_drbg_seed(&impl->ctr_drbg, mbedtls_entropy_func, &impl->entropy, NULL, 0) != 0) {
+        freeImpl(env, impl);
         return 0;
     }
 
     if (mbedtls_ssl_config_defaults(&impl->config, MBEDTLS_SSL_IS_CLIENT, transport,
-                                    MBEDTLS_SSL_PRESET_DEFAULT)) {
-        freeImpl(impl);
+                                    MBEDTLS_SSL_PRESET_DEFAULT) != 0) {
+        freeImpl(env, impl);
         return 0;
     }
 
     mbedtls_ssl_conf_rng(&impl->config, mbedtls_ctr_drbg_random, &impl->ctr_drbg);
     mbedtls_ssl_conf_ciphersuites(&impl->config, impl->cipher_suites);
 
-    if (mbedtls_ssl_conf_psk(&impl->config, psk_buff, psk_len, psk_id_buf, psk_id_len)) {
-        freeImpl(impl);
+    if (mbedtls_ssl_conf_psk(&impl->config, psk_buff, psk_len, (const unsigned char *)psk_id_buf, psk_id_len) != 0) {
+        freeImpl(env, impl);
         return 0;
     }
 
     mbedtls_debug_set_threshold(1);
     mbedtls_ssl_conf_dbg(&impl->config, debug_msg, NULL);
 
-    if (mbedtls_ssl_setup(&impl->context, &impl->config)) {
-        freeImpl(impl);
+    if (mbedtls_ssl_setup(&impl->context, &impl->config) != 0) {
+        freeImpl(env, impl);
         return 0;
     }
 

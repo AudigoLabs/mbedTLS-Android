@@ -110,7 +110,7 @@ class MbedTLS : AutoCloseable {
             psk = psk,
             pskLength = psk.size,
             pskId = pskId.toByteArray(),
-            pskIdLength = pskId.toCharArray().size,
+            pskIdLength = pskId.toByteArray().size,
         )
 
         return pointer != 0L
